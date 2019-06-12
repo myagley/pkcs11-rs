@@ -8,11 +8,11 @@ fn main() {
 
     let list = unsafe {
         let mut list: CK_FUNCTION_LIST_PTR = mem::uninitialized();
-        let func: lib::Symbol<unsafe extern "C" fn(CK_FUNCTION_LIST_PTR_PTR) -> CK_RV> = lib.get(b"C_GetFunctionList").unwrap();
+        let func: lib::Symbol<unsafe extern "C" fn(CK_FUNCTION_LIST_PTR_PTR) -> CK_RV> =
+            lib.get(b"C_GetFunctionList").unwrap();
         func(&mut list);
         list
     };
-
 
     unsafe {
         let arg = std::ptr::null_mut();
@@ -27,8 +27,14 @@ fn main() {
     println!();
     println!("--------------- Info ----------------");
     println!("Library Version :    {:?}", info.libraryVersion);
-    println!("Library Description: {}", std::str::from_utf8(&info.libraryDescription).unwrap());
-    println!("Manufacturer ID:     {}", std::str::from_utf8(&info.manufacturerID).unwrap());
+    println!(
+        "Library Description: {}",
+        std::str::from_utf8(&info.libraryDescription).unwrap()
+    );
+    println!(
+        "Manufacturer ID:     {}",
+        std::str::from_utf8(&info.manufacturerID).unwrap()
+    );
 
     let slot_info = unsafe {
         let mut slot_info: CK_SLOT_INFO = mem::uninitialized();
@@ -37,8 +43,13 @@ fn main() {
     };
     println!();
     println!("--------------- Slot ----------------");
-    println!("Slot Description: {}", std::str::from_utf8(&slot_info.slotDescription).unwrap());
-    println!("Manufacturer ID:  {}", std::str::from_utf8(&slot_info.manufacturerID).unwrap());
+    println!(
+        "Slot Description: {}",
+        std::str::from_utf8(&slot_info.slotDescription).unwrap()
+    );
+    println!(
+        "Manufacturer ID:  {}",
+        std::str::from_utf8(&slot_info.manufacturerID).unwrap()
+    );
     println!("Hardware Version: {:?}", slot_info.hardwareVersion);
 }
-
