@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::convert::From;
 use std::mem;
 use std::path::PathBuf;
 use std::str;
@@ -97,6 +98,22 @@ impl Cryptoki {
         };
         Ok(info)
     }
+
+    pub fn slot_info<S: Into<SlotId>>(&self, slot_id: S) -> Result<SlotInfo, Error> {
+        let info = unsafe {
+            let mut info = SlotInfo {
+                inner: mem::uninitialized(),
+            };
+            try_ck!((*self.functions)
+                .C_GetSlotInfo
+                .ok_or(ErrorKind::LoadModule)?(
+                slot_id.into().0,
+                &mut info.inner
+            ));
+            info
+        };
+        Ok(info)
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -143,6 +160,42 @@ impl Info {
     }
 }
 
+pub struct SlotId(CK_SLOT_ID);
+
+impl From<u64> for SlotId {
+    fn from(id: u64) -> SlotId {
+        SlotId(id)
+    }
+}
+
+pub struct SlotInfo {
+    inner: CK_SLOT_INFO,
+}
+
+impl SlotInfo {
+    pub fn slot_description(&self) -> &str {
+        unsafe { str::from_utf8_unchecked(&self.inner.slotDescription) }
+    }
+
+    pub fn manufacturer_id(&self) -> &str {
+        unsafe { str::from_utf8_unchecked(&self.inner.manufacturerID) }
+    }
+
+    pub fn hardware_version(&self) -> Version {
+        Version {
+            major: self.inner.hardwareVersion.major,
+            minor: self.inner.hardwareVersion.minor,
+        }
+    }
+
+    pub fn firmware_version(&self) -> Version {
+        Version {
+            major: self.inner.firmwareVersion.major,
+            minor: self.inner.firmwareVersion.minor,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -180,5 +233,24 @@ mod tests {
             "Implementation of PKCS11        ",
             info.library_description()
         );
+    }
+
+    #[test]
+    fn test_slot_info() {
+        let cryptoki = Builder::new()
+            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+            .initialize()
+            .unwrap();
+        let info = cryptoki.slot_info(1).unwrap();
+        let expected_hardware_version = Version { major: 2, minor: 5 };
+        let expected_firmware_version = Version { major: 2, minor: 5 };
+
+        assert_eq!(expected_hardware_version, info.hardware_version());
+        assert_eq!(expected_firmware_version, info.firmware_version());
+        assert_eq!(
+            "SoftHSM slot ID 0x1                                             ",
+            info.slot_description()
+        );
+        assert_eq!("SoftHSM project                 ", info.manufacturer_id());
     }
 }

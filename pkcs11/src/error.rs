@@ -301,7 +301,7 @@ impl FunctionErrorReason {
 impl fmt::Display for FunctionErrorReason {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            _ => write!(f, "unknown"),
+            _ => write!(f, "{:?}", self),
         }
     }
 }
