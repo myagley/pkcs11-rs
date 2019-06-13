@@ -40,8 +40,7 @@ impl Builder {
     }
 
     pub fn initialize<'a>(&self) -> Result<Cryptoki, Error> {
-        let lib = lib::Library::new("/usr/local/lib/softhsm/libsofthsm2.so")
-            .context(ErrorKind::LoadModule)?;
+        let lib = lib::Library::new(&self.module_path).context(ErrorKind::LoadModule)?;
         let functions = unsafe {
             let mut list: CK_FUNCTION_LIST_PTR = mem::uninitialized();
             let func: lib::Symbol<unsafe extern "C" fn(CK_FUNCTION_LIST_PTR_PTR) -> CK_RV> = lib
