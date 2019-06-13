@@ -79,6 +79,7 @@ impl Builder {
 }
 
 impl Cryptoki {
+    /// Cryptoki API version
     pub fn version(&self) -> Version {
         Version {
             major: self.version.major,
@@ -86,6 +87,7 @@ impl Cryptoki {
         }
     }
 
+    /// Returns general information about the Cryptoki module
     pub fn info(&self) -> Result<Info, Error> {
         let info = unsafe {
             let mut info = Info {
@@ -99,6 +101,8 @@ impl Cryptoki {
         Ok(info)
     }
 
+    /// Obtains information about a particular slot in the system.
+    /// `slot_id` is the ID of the slot
     pub fn slot_info<S: Into<SlotId>>(&self, slot_id: S) -> Result<SlotInfo, Error> {
         let info = unsafe {
             let mut info = SlotInfo {
@@ -115,6 +119,8 @@ impl Cryptoki {
         Ok(info)
     }
 
+    /// Obtains information about a particular token in the system.
+    /// slot_id is the ID of the token’s slot
     pub fn token_info<S: Into<SlotId>>(&self, slot_id: S) -> Result<TokenInfo, Error> {
         let info = unsafe {
             let mut info = TokenInfo {
@@ -131,6 +137,7 @@ impl Cryptoki {
         Ok(info)
     }
 
+    /// Used to obtain a list of slots in the system
     pub fn slot_list(&self, option: SlotsOption) -> Result<Vec<SlotId>, Error> {
         let ids = unsafe {
             let token_present = if let SlotsOption::All = option {
