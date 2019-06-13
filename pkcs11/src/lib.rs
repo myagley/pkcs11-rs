@@ -130,6 +130,45 @@ impl Cryptoki {
         };
         Ok(info)
     }
+
+    pub fn slot_list(&self, option: SlotsOption) -> Result<Vec<SlotId>, Error> {
+        let ids = unsafe {
+            let token_present = if let SlotsOption::All = option {
+                CK_FALSE as u8
+            } else {
+                CK_TRUE as u8
+            };
+
+            // Get the count of slots
+            let mut count: CK_ULONG = mem::uninitialized();
+            let arg = std::ptr::null_mut();
+            try_ck!((*self.functions)
+                .C_GetSlotList
+                .ok_or(ErrorKind::LoadModule)?(
+                token_present,
+                arg,
+                (&mut count) as *mut CK_ULONG
+            ));
+
+            // Fill in the data
+            let mut slot_ids = Vec::with_capacity(count as usize);
+            try_ck!((*self.functions)
+                .C_GetSlotList
+                .ok_or(ErrorKind::LoadModule)?(
+                token_present,
+                slot_ids.as_mut_ptr(),
+                (&mut count) as *mut CK_ULONG,
+            ));
+            slot_ids.set_len(count as usize);
+            slot_ids
+        };
+        Ok(ids.iter().map(|id| SlotId(*id)).collect())
+    }
+}
+
+pub enum SlotsOption {
+    All,
+    TokenPresent,
 }
 
 #[derive(Debug, PartialEq)]
@@ -434,5 +473,15 @@ mod tests {
         assert_eq!(4, info.min_pin_len());
         assert_eq!(expected_public_memory, info.public_memory());
         assert_eq!(expected_private_memory, info.private_memory());
+    }
+
+    #[test]
+    fn test_slots() {
+        let cryptoki = Builder::new()
+            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+            .initialize()
+            .unwrap();
+        let slots = cryptoki.slot_list(SlotsOption::TokenPresent).unwrap();
+        assert_eq!(2, slots.len());
     }
 }
