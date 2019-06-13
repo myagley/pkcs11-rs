@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::mem;
-use std::ops::Drop;
 use std::path::PathBuf;
 use std::str;
 use std::sync::Mutex;
@@ -10,6 +9,7 @@ use lazy_static::lazy_static;
 use libloading as lib;
 use pkcs11_sys::*;
 
+#[macro_use]
 mod error;
 pub use crate::error::{Error, ErrorKind};
 
@@ -19,7 +19,7 @@ lazy_static! {
 
 pub struct Cryptoki {
     functions: CK_FUNCTION_LIST_PTR,
-    lib: lib::Library,
+    _lib: lib::Library,
     version: CK_VERSION,
 }
 
@@ -56,7 +56,7 @@ impl Builder {
         if !initialized.contains(&self.module_path) {
             unsafe {
                 let arg = std::ptr::null_mut();
-                (*functions).C_Initialize.ok_or(ErrorKind::LoadModule)?(arg);
+                try_ck!((*functions).C_Initialize.ok_or(ErrorKind::LoadModule)?(arg));
             }
             initialized.insert(self.module_path.clone());
         }
@@ -71,7 +71,7 @@ impl Builder {
 
         let token = Cryptoki {
             functions,
-            lib,
+            _lib: lib,
             version,
         };
         Ok(token)
@@ -91,7 +91,9 @@ impl Cryptoki {
             let mut info = Info {
                 inner: mem::uninitialized(),
             };
-            (*self.functions).C_GetInfo.ok_or(ErrorKind::LoadModule)?(&mut info.inner);
+            try_ck!((*self.functions).C_GetInfo.ok_or(ErrorKind::LoadModule)?(
+                &mut info.inner
+            ));
             info
         };
         Ok(info)

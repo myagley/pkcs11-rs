@@ -308,12 +308,12 @@ impl fmt::Display for FunctionErrorReason {
 
 macro_rules! r#try_ck {
     ($expr:expr) => {
-        match $expr {
-            CK_OK => (),
+        match $expr as u32 {
+            pkcs11_sys::CKR_OK => (),
             err => {
-                return Err(From::from(ErrorKind::Function(FunctionErrorReason::from(
-                    err,
-                ))))
+                return Err(From::from($crate::error::ErrorKind::Function(
+                    $crate::error::FunctionErrorReason::from(err.into()),
+                )))
             }
         }
     };
