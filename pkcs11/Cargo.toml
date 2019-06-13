@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 failure = "0.1"
+lazy_static = "1"
 libloading = "0.5.1"
 
 pkcs11-sys = { path = "../pkcs11-sys" }

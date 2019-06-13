@@ -1,14 +1,21 @@
+use std::collections::HashSet;
 use std::mem;
 use std::ops::Drop;
 use std::path::PathBuf;
 use std::str;
+use std::sync::Mutex;
 
 use failure::ResultExt;
+use lazy_static::lazy_static;
 use libloading as lib;
 use pkcs11_sys::*;
 
 mod error;
 pub use crate::error::{Error, ErrorKind};
+
+lazy_static! {
+    static ref INITIALIZED_CRYPTOKI: Mutex<HashSet<PathBuf>> = Mutex::new(HashSet::new());
+}
 
 pub struct Cryptoki {
     functions: CK_FUNCTION_LIST_PTR,
@@ -44,10 +51,16 @@ impl Builder {
             list
         };
 
-        unsafe {
-            let arg = std::ptr::null_mut();
-            (*functions).C_Initialize.ok_or(ErrorKind::LoadModule)?(arg);
+        // Only initialize a particular library once
+        let mut initialized = INITIALIZED_CRYPTOKI.lock().expect("poisoned");
+        if !initialized.contains(&self.module_path) {
+            unsafe {
+                let arg = std::ptr::null_mut();
+                (*functions).C_Initialize.ok_or(ErrorKind::LoadModule)?(arg);
+            }
+            initialized.insert(self.module_path.clone());
         }
+        drop(initialized);
 
         let version = unsafe {
             CK_VERSION {
@@ -82,17 +95,6 @@ impl Cryptoki {
             info
         };
         Ok(info)
-    }
-}
-
-impl Drop for Cryptoki {
-    fn drop(&mut self) {
-        unsafe {
-            if let Some(finalize) = (*self.functions).C_Finalize {
-                let arg = std::ptr::null_mut();
-                finalize(arg);
-            }
-        }
     }
 }
 
@@ -144,19 +146,19 @@ impl Info {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn test_version() {
-    //     let cryptoki = Builder::new()
-    //         .module("/usr/local/lib/softhsm/libsofthsm2.so")
-    //         .initialize()
-    //         .unwrap();
-    //
-    //     let expected = Version {
-    //         major: 2,
-    //         minor: 40,
-    //     };
-    //     assert_eq!(expected, cryptoki.version());
-    // }
+    #[test]
+    fn test_version() {
+        let cryptoki = Builder::new()
+            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+            .initialize()
+            .unwrap();
+
+        let expected = Version {
+            major: 2,
+            minor: 40,
+        };
+        assert_eq!(expected, cryptoki.version());
+    }
 
     #[test]
     fn test_info() {
