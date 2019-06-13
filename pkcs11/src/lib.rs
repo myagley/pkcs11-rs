@@ -114,6 +114,22 @@ impl Cryptoki {
         };
         Ok(info)
     }
+
+    pub fn token_info<S: Into<SlotId>>(&self, slot_id: S) -> Result<TokenInfo, Error> {
+        let info = unsafe {
+            let mut info = TokenInfo {
+                inner: mem::uninitialized(),
+            };
+            try_ck!((*self.functions)
+                .C_GetTokenInfo
+                .ok_or(ErrorKind::LoadModule)?(
+                slot_id.into().0,
+                &mut info.inner
+            ));
+            info
+        };
+        Ok(info)
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -196,6 +212,135 @@ impl SlotInfo {
     }
 }
 
+pub struct TokenInfo {
+    inner: CK_TOKEN_INFO,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Memory {
+    total: usize,
+    free: usize,
+}
+
+impl Memory {
+    pub fn total(&self) -> usize {
+        self.total
+    }
+
+    pub fn free(&self) -> usize {
+        self.free
+    }
+}
+
+impl TokenInfo {
+    /// application-defined label, assigned during token initialization.
+    /// MUST be padded with the blank character (‘ ‘).  MUST NOT be
+    /// null-terminated.
+    pub fn label(&self) -> &str {
+        unsafe { str::from_utf8_unchecked(&self.inner.label) }
+    }
+
+    /// ID of the device manufacturer.  MUST be padded with the blank
+    /// character (‘ ‘).  MUST NOT be null-terminated.
+    pub fn manufacturer_id(&self) -> &str {
+        unsafe { str::from_utf8_unchecked(&self.inner.manufacturerID) }
+    }
+
+    /// model of the device.  MUST be padded with the blank character
+    /// (‘ ‘).  MUST NOT be null-terminated.
+    pub fn model(&self) -> &str {
+        unsafe { str::from_utf8_unchecked(&self.inner.model) }
+    }
+
+    /// character-string serial number of the device.  MUST be padded with
+    /// the blank character (‘ ‘).  MUST NOT be null-terminated.
+    pub fn serial_number(&self) -> &str {
+        unsafe { str::from_utf8_unchecked(&self.inner.serialNumber) }
+    }
+
+    /// maximum number of sessions that can be opened with the token at one
+    /// time by a single application
+    pub fn max_session_count(&self) -> usize {
+        self.inner.ulMaxSessionCount as usize
+    }
+
+    /// number of sessions that this application currently has open with the
+    /// token
+    pub fn session_count(&self) -> usize {
+        self.inner.ulSessionCount as usize
+    }
+
+    /// maximum number of read/write sessions that can be opened with the token
+    /// at one time by a single application
+    pub fn max_rw_session_count(&self) -> usize {
+        self.inner.ulMaxRwSessionCount as usize
+    }
+
+    /// number of read/write sessions that this application currently has open
+    /// with the token
+    pub fn rw_session_count(&self) -> usize {
+        self.inner.ulRwSessionCount as usize
+    }
+
+    /// maximum length in bytes of the PIN
+    pub fn max_pin_len(&self) -> usize {
+        self.inner.ulMaxPinLen as usize
+    }
+
+    /// minimum length in bytes of the PIN
+    pub fn min_pin_len(&self) -> usize {
+        self.inner.ulMinPinLen as usize
+    }
+
+    /// memory stats in bytes in which public objects may be stored
+    pub fn public_memory(&self) -> Memory {
+        Memory {
+            total: self.inner.ulTotalPublicMemory as usize,
+            free: self.inner.ulFreePublicMemory as usize,
+        }
+    }
+
+    /// memory stats in bytes in which private objects may be stored
+    pub fn private_memory(&self) -> Memory {
+        Memory {
+            total: self.inner.ulTotalPrivateMemory as usize,
+            free: self.inner.ulFreePrivateMemory as usize,
+        }
+    }
+
+    /// version number of hardware
+    pub fn hardware_version(&self) -> Version {
+        Version {
+            major: self.inner.hardwareVersion.major,
+            minor: self.inner.hardwareVersion.minor,
+        }
+    }
+
+    /// version number of hardware
+    pub fn firmware_version(&self) -> Version {
+        Version {
+            major: self.inner.firmwareVersion.major,
+            minor: self.inner.firmwareVersion.minor,
+        }
+    }
+
+    /// current time as a character-string of length 16, represented in the
+    /// format YYYYMMDDhhmmssxx (4 characters for the year;  2 characters each
+    /// for the month, the day, the hour, the minute, and the second; and 2
+    /// additional reserved ‘0’ characters).  The value of this field only
+    /// makes sense for tokens equipped with a clock, as indicated in the token
+    /// information flags
+    pub fn utc_time(&self) -> &str {
+        unsafe { str::from_utf8_unchecked(&self.inner.utcTime) }
+    }
+
+    /// True if the token has been initialized using C_InitToken or an
+    /// equivalent mechanism outside the scope of this standard.
+    pub fn is_initialized(&self) -> bool {
+        (self.inner.flags & (CKF_TOKEN_INITIALIZED as CK_FLAGS)) != 0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,5 +397,42 @@ mod tests {
             info.slot_description()
         );
         assert_eq!("SoftHSM project                 ", info.manufacturer_id());
+    }
+
+    // ignore until we can initialize the token to test
+    #[test]
+    #[ignore]
+    fn test_token_info() {
+        let cryptoki = Builder::new()
+            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+            .initialize()
+            .unwrap();
+        let info = cryptoki.token_info(1).unwrap();
+        let expected_hardware_version = Version { major: 2, minor: 5 };
+        let expected_firmware_version = Version { major: 2, minor: 5 };
+        let expected_public_memory = Memory {
+            total: std::usize::MAX,
+            free: std::usize::MAX,
+        };
+        let expected_private_memory = Memory {
+            total: std::usize::MAX,
+            free: std::usize::MAX,
+        };
+
+        assert!(info.is_initialized());
+        assert_eq!(expected_hardware_version, info.hardware_version());
+        assert_eq!(expected_firmware_version, info.firmware_version());
+        assert_eq!("My token 1                      ", info.label());
+        assert_eq!("SoftHSM project                 ", info.manufacturer_id());
+        assert_eq!("SoftHSM v2      ", info.model());
+        assert_eq!("7b7e19c466b73008", info.serial_number());
+        // assert_eq!(std::usize::MAX, info.max_session_count());
+        // assert_eq!(0, info.session_count());
+        // assert_eq!(std::usize::MAX, info.max_rw_session_count());
+        // assert_eq!(0, info.rw_session_count());
+        assert_eq!(255, info.max_pin_len());
+        assert_eq!(4, info.min_pin_len());
+        assert_eq!(expected_public_memory, info.public_memory());
+        assert_eq!(expected_private_memory, info.private_memory());
     }
 }
