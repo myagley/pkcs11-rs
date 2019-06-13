@@ -11,7 +11,7 @@ use pkcs11_sys::*;
 
 #[macro_use]
 mod error;
-pub use crate::error::{Error, ErrorKind};
+pub use crate::error::{Error, ErrorKind, FunctionErrorReason};
 
 lazy_static! {
     static ref INITIALIZED_CRYPTOKI: Mutex<HashSet<PathBuf>> = Mutex::new(HashSet::new());
