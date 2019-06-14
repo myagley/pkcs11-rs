@@ -96,9 +96,8 @@ impl Cryptoki {
             let mut info = Info {
                 inner: mem::uninitialized(),
             };
-            try_ck!((*self.functions).C_GetInfo.ok_or(ErrorKind::LoadModule)?(
-                &mut info.inner
-            ));
+            let get_info = (*self.functions).C_GetInfo.ok_or(ErrorKind::LoadModule)?;
+            try_ck!(get_info(&mut info.inner));
             info
         };
         Ok(info)
@@ -107,37 +106,33 @@ impl Cryptoki {
     /// Obtains information about a particular slot in the system.
     /// `slot_id` is the ID of the slot
     pub fn slot_info<S: Into<SlotId>>(&self, slot_id: S) -> Result<SlotInfo, Error> {
-        let info = unsafe {
-            let mut info = SlotInfo {
+        let slot_info = unsafe {
+            let mut slot_info = SlotInfo {
                 inner: mem::uninitialized(),
             };
-            try_ck!((*self.functions)
+            let get_slot_info = (*self.functions)
                 .C_GetSlotInfo
-                .ok_or(ErrorKind::LoadModule)?(
-                slot_id.into().0,
-                &mut info.inner
-            ));
-            info
+                .ok_or(ErrorKind::LoadModule)?;
+            try_ck!(get_slot_info(slot_id.into().0, &mut slot_info.inner));
+            slot_info
         };
-        Ok(info)
+        Ok(slot_info)
     }
 
     /// Obtains information about a particular token in the system.
     /// slot_id is the ID of the token’s slot
     pub fn token_info<S: Into<SlotId>>(&self, slot_id: S) -> Result<TokenInfo, Error> {
-        let info = unsafe {
-            let mut info = TokenInfo {
+        let token_info = unsafe {
+            let mut token_info = TokenInfo {
                 inner: mem::uninitialized(),
             };
-            try_ck!((*self.functions)
+            let get_token_info = (*self.functions)
                 .C_GetTokenInfo
-                .ok_or(ErrorKind::LoadModule)?(
-                slot_id.into().0,
-                &mut info.inner
-            ));
-            info
+                .ok_or(ErrorKind::LoadModule)?;
+            try_ck!(get_token_info(slot_id.into().0, &mut token_info.inner));
+            token_info
         };
-        Ok(info)
+        Ok(token_info)
     }
 
     /// Used to obtain a list of slots in the system
@@ -149,12 +144,14 @@ impl Cryptoki {
                 CK_TRUE as u8
             };
 
+            let get_slot_list = (*self.functions)
+                .C_GetSlotList
+                .ok_or(ErrorKind::LoadModule)?;
+
             // Get the count of slots
             let mut count: CK_ULONG = mem::uninitialized();
             let arg = std::ptr::null_mut();
-            try_ck!((*self.functions)
-                .C_GetSlotList
-                .ok_or(ErrorKind::LoadModule)?(
+            try_ck!(get_slot_list(
                 token_present,
                 arg,
                 (&mut count) as *mut CK_ULONG
@@ -162,12 +159,10 @@ impl Cryptoki {
 
             // Fill in the data
             let mut slot_ids = Vec::with_capacity(count as usize);
-            try_ck!((*self.functions)
-                .C_GetSlotList
-                .ok_or(ErrorKind::LoadModule)?(
+            try_ck!(get_slot_list(
                 token_present,
                 slot_ids.as_mut_ptr(),
-                (&mut count) as *mut CK_ULONG,
+                (&mut count) as *mut CK_ULONG
             ));
             slot_ids.set_len(count as usize);
             slot_ids
@@ -175,6 +170,8 @@ impl Cryptoki {
         Ok(ids.iter().map(|id| SlotId(*id)).collect())
     }
 
+    /// Opens a connection between an application and a particular token or
+    /// sets up an application callback for token insertion
     pub fn session<'c, S: Into<SlotId>>(
         &'c self,
         slot_id: S,
@@ -191,15 +188,16 @@ impl Cryptoki {
                 handle: mem::uninitialized(),
             };
             let p_application = std::ptr::null_mut();
-
-            try_ck!((*self.functions)
+            let open_session = (*self.functions)
                 .C_OpenSession
-                .ok_or(ErrorKind::LoadModule)?(
+                .ok_or(ErrorKind::LoadModule)?;
+
+            try_ck!(open_session(
                 slot_id.0,
                 flags.bits(),
                 p_application,
                 Option::None,
-                &mut session.handle,
+                &mut session.handle
             ));
             session
         };
@@ -314,7 +312,7 @@ impl Memory {
 }
 
 impl TokenInfo {
-    /// application-defined label, assigned during token initialization.
+    /// Application-defined label, assigned during token initialization.
     /// MUST be padded with the blank character (‘ ‘).  MUST NOT be
     /// null-terminated.
     pub fn label(&self) -> &str {
@@ -327,53 +325,53 @@ impl TokenInfo {
         unsafe { str::from_utf8_unchecked(&self.inner.manufacturerID) }
     }
 
-    /// model of the device.  MUST be padded with the blank character
+    /// Model of the device.  MUST be padded with the blank character
     /// (‘ ‘).  MUST NOT be null-terminated.
     pub fn model(&self) -> &str {
         unsafe { str::from_utf8_unchecked(&self.inner.model) }
     }
 
-    /// character-string serial number of the device.  MUST be padded with
+    /// Character-string serial number of the device.  MUST be padded with
     /// the blank character (‘ ‘).  MUST NOT be null-terminated.
     pub fn serial_number(&self) -> &str {
         unsafe { str::from_utf8_unchecked(&self.inner.serialNumber) }
     }
 
-    /// maximum number of sessions that can be opened with the token at one
+    /// Maximum number of sessions that can be opened with the token at one
     /// time by a single application
     pub fn max_session_count(&self) -> usize {
         self.inner.ulMaxSessionCount as usize
     }
 
-    /// number of sessions that this application currently has open with the
+    /// Number of sessions that this application currently has open with the
     /// token
     pub fn session_count(&self) -> usize {
         self.inner.ulSessionCount as usize
     }
 
-    /// maximum number of read/write sessions that can be opened with the token
+    /// Maximum number of read/write sessions that can be opened with the token
     /// at one time by a single application
     pub fn max_rw_session_count(&self) -> usize {
         self.inner.ulMaxRwSessionCount as usize
     }
 
-    /// number of read/write sessions that this application currently has open
+    /// Number of read/write sessions that this application currently has open
     /// with the token
     pub fn rw_session_count(&self) -> usize {
         self.inner.ulRwSessionCount as usize
     }
 
-    /// maximum length in bytes of the PIN
+    /// Maximum length in bytes of the PIN
     pub fn max_pin_len(&self) -> usize {
         self.inner.ulMaxPinLen as usize
     }
 
-    /// minimum length in bytes of the PIN
+    /// Minimum length in bytes of the PIN
     pub fn min_pin_len(&self) -> usize {
         self.inner.ulMinPinLen as usize
     }
 
-    /// memory stats in bytes in which public objects may be stored
+    /// Memory stats in bytes in which public objects may be stored
     pub fn public_memory(&self) -> Memory {
         Memory {
             total: self.inner.ulTotalPublicMemory as usize,
@@ -381,7 +379,7 @@ impl TokenInfo {
         }
     }
 
-    /// memory stats in bytes in which private objects may be stored
+    /// Memory stats in bytes in which private objects may be stored
     pub fn private_memory(&self) -> Memory {
         Memory {
             total: self.inner.ulTotalPrivateMemory as usize,
@@ -389,7 +387,7 @@ impl TokenInfo {
         }
     }
 
-    /// version number of hardware
+    /// Version number of hardware
     pub fn hardware_version(&self) -> Version {
         Version {
             major: self.inner.hardwareVersion.major,
@@ -397,7 +395,7 @@ impl TokenInfo {
         }
     }
 
-    /// version number of hardware
+    /// Version number of hardware
     pub fn firmware_version(&self) -> Version {
         Version {
             major: self.inner.firmwareVersion.major,
@@ -405,7 +403,7 @@ impl TokenInfo {
         }
     }
 
-    /// current time as a character-string of length 16, represented in the
+    /// Current time as a character-string of length 16, represented in the
     /// format YYYYMMDDhhmmssxx (4 characters for the year;  2 characters each
     /// for the month, the day, the hour, the minute, and the second; and 2
     /// additional reserved ‘0’ characters).  The value of this field only
