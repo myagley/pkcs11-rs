@@ -12,7 +12,10 @@ use pkcs11_sys::*;
 
 #[macro_use]
 mod error;
+pub mod session;
+
 pub use crate::error::{Error, ErrorKind, FunctionErrorReason};
+use crate::session::{Session, SessionFlags};
 
 lazy_static! {
     static ref INITIALIZED_CRYPTOKI: Mutex<HashSet<PathBuf>> = Mutex::new(HashSet::new());
@@ -171,6 +174,37 @@ impl Cryptoki {
         };
         Ok(ids.iter().map(|id| SlotId(*id)).collect())
     }
+
+    pub fn session<'c, S: Into<SlotId>>(
+        &'c self,
+        slot_id: S,
+        mut flags: SessionFlags,
+    ) -> Result<Session<'c>, Error> {
+        let slot_id = slot_id.into();
+        // (5.6) For legacy reasons, the CKF_SERIAL_SESSION bit MUST always be set
+        flags.insert(SessionFlags::SERIAL);
+
+        let session = unsafe {
+            let mut session = Session {
+                slot_id,
+                cryptoki: self,
+                handle: mem::uninitialized(),
+            };
+            let p_application = std::ptr::null_mut();
+
+            try_ck!((*self.functions)
+                .C_OpenSession
+                .ok_or(ErrorKind::LoadModule)?(
+                slot_id.0,
+                flags.bits(),
+                p_application,
+                Option::None,
+                &mut session.handle,
+            ));
+            session
+        };
+        Ok(session)
+    }
 }
 
 pub enum SlotsOption {
@@ -222,6 +256,7 @@ impl Info {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct SlotId(CK_SLOT_ID);
 
 impl From<u64> for SlotId {
