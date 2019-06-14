@@ -27,16 +27,17 @@ impl<'c> Session<'c> {
         Ok(info)
     }
 
-    pub fn login(&self, user_type: UserType, pin: &mut str) -> Result<(), Error> {
+    pub fn login(&self, user_type: UserType, pin: &str) -> Result<(), Error> {
         unsafe {
+            let mut cpin = String::from(pin);
             let login = (*self.cryptoki.functions)
                 .C_Login
                 .ok_or(ErrorKind::LoadModule)?;
             try_ck!(login(
                 self.handle,
                 user_type.into(),
-                pin as *mut str as *mut u8,
-                pin.len() as CK_ULONG
+                cpin.as_mut_str() as *mut str as *mut u8,
+                cpin.len() as CK_ULONG
             ));
         }
         Ok(())
@@ -173,9 +174,7 @@ mod tests {
         assert!(info.flags().contains(SessionFlags::RW));
         assert_eq!(SessionState::RwPublic, info.state());
 
-        session
-            .login(UserType::User, &mut String::from("1234"))
-            .unwrap();
+        session.login(UserType::User, "1234").unwrap();
         let info = session.info().unwrap();
 
         assert!(info.flags().contains(SessionFlags::RW));
