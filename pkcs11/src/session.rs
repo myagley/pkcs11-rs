@@ -21,7 +21,7 @@ impl<'c> Session<'c> {
             };
             let get_session = (*self.cryptoki.functions)
                 .C_GetSessionInfo
-                .ok_or(ErrorKind::LoadModule)?;
+                .ok_or(ErrorKind::MissingFunction("C_GetSessionInfo"))?;
             try_ck!(get_session(self.handle, &mut info.inner));
             info
         };
@@ -33,7 +33,7 @@ impl<'c> Session<'c> {
             let mut cpin = String::from(pin);
             let login = (*self.cryptoki.functions)
                 .C_Login
-                .ok_or(ErrorKind::LoadModule)?;
+                .ok_or(ErrorKind::MissingFunction("C_Login"))?;
             try_ck!(login(
                 self.handle,
                 user_type.into(),
@@ -48,7 +48,7 @@ impl<'c> Session<'c> {
         unsafe {
             let logout = (*self.cryptoki.functions)
                 .C_Logout
-                .ok_or(ErrorKind::LoadModule)?;
+                .ok_or(ErrorKind::MissingFunction("C_Logout"))?;
             try_ck!(logout(self.handle));
         }
         Ok(())
@@ -71,7 +71,7 @@ impl<'c> Session<'c> {
         let object = unsafe {
             let create_object = (*self.cryptoki.functions)
                 .C_CreateObject
-                .ok_or(ErrorKind::LoadModule)?;
+                .ok_or(ErrorKind::MissingFunction("C_CreateObject"))?;
             let mut object = Object {
                 handle: mem::uninitialized(),
                 session: self,
@@ -182,7 +182,6 @@ impl From<UserType> for CK_USER_TYPE {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::object::*;
     use crate::Builder;
 
     #[test]

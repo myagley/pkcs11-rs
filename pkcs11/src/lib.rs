@@ -61,7 +61,11 @@ impl Builder {
         if !initialized.contains(&self.module_path) {
             unsafe {
                 let arg = std::ptr::null_mut();
-                try_ck!((*functions).C_Initialize.ok_or(ErrorKind::LoadModule)?(arg));
+                try_ck!((*functions)
+                    .C_Initialize
+                    .ok_or(ErrorKind::MissingFunction("C_Initialize"))?(
+                    arg
+                ));
             }
             initialized.insert(self.module_path.clone());
         }
@@ -98,7 +102,9 @@ impl Cryptoki {
             let mut info = Info {
                 inner: mem::uninitialized(),
             };
-            let get_info = (*self.functions).C_GetInfo.ok_or(ErrorKind::LoadModule)?;
+            let get_info = (*self.functions)
+                .C_GetInfo
+                .ok_or(ErrorKind::MissingFunction("C_GetInfo"))?;
             try_ck!(get_info(&mut info.inner));
             info
         };
@@ -114,7 +120,7 @@ impl Cryptoki {
             };
             let get_slot_info = (*self.functions)
                 .C_GetSlotInfo
-                .ok_or(ErrorKind::LoadModule)?;
+                .ok_or(ErrorKind::MissingFunction("C_GetSlotInfo"))?;
             try_ck!(get_slot_info(slot_id.into().0, &mut slot_info.inner));
             slot_info
         };
@@ -130,7 +136,7 @@ impl Cryptoki {
             };
             let get_token_info = (*self.functions)
                 .C_GetTokenInfo
-                .ok_or(ErrorKind::LoadModule)?;
+                .ok_or(ErrorKind::MissingFunction("C_GetTokenInfo"))?;
             try_ck!(get_token_info(slot_id.into().0, &mut token_info.inner));
             token_info
         };
@@ -148,7 +154,7 @@ impl Cryptoki {
 
             let get_slot_list = (*self.functions)
                 .C_GetSlotList
-                .ok_or(ErrorKind::LoadModule)?;
+                .ok_or(ErrorKind::MissingFunction("C_GetSlotList"))?;
 
             // Get the count of slots
             let mut count: CK_ULONG = mem::uninitialized();
@@ -192,7 +198,7 @@ impl Cryptoki {
             let p_application = std::ptr::null_mut();
             let open_session = (*self.functions)
                 .C_OpenSession
-                .ok_or(ErrorKind::LoadModule)?;
+                .ok_or(ErrorKind::MissingFunction("C_OpenSession"))?;
 
             try_ck!(open_session(
                 slot_id.0,
