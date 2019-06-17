@@ -22,7 +22,7 @@ pub struct Object<'c, 's> {
 /// specified on an object through the CKA_CLASS attribute of the object.
 ///
 /// Vendor defined values for this type may also be specified.
-pub enum ObjectClass {
+pub(crate) enum ObjectClass {
     Certificate,
     Data,
     DomainParameters,
