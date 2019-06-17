@@ -4,6 +4,7 @@ use std::ops::Drop;
 use bitflags::bitflags;
 use pkcs11_sys::*;
 
+use crate::object::{Object, Template};
 use crate::{Cryptoki, Error, ErrorKind, SlotId};
 
 pub struct Session<'c> {
@@ -27,7 +28,7 @@ impl<'c> Session<'c> {
         Ok(info)
     }
 
-    pub fn login(&self, user_type: UserType, pin: &str) -> Result<(), Error> {
+    pub fn login(&mut self, user_type: UserType, pin: &str) -> Result<(), Error> {
         unsafe {
             let mut cpin = String::from(pin);
             let login = (*self.cryptoki.functions)
@@ -43,7 +44,7 @@ impl<'c> Session<'c> {
         Ok(())
     }
 
-    pub fn logout(&self) -> Result<(), Error> {
+    pub fn logout(&mut self) -> Result<(), Error> {
         unsafe {
             let logout = (*self.cryptoki.functions)
                 .C_Logout
@@ -51,6 +52,40 @@ impl<'c> Session<'c> {
             try_ck!(logout(self.handle));
         }
         Ok(())
+    }
+
+    pub fn create_object<'s, T: Template>(
+        &'s mut self,
+        template: &mut T,
+    ) -> Result<Object<'c, 's>, Error> {
+        let mut attributes = Vec::with_capacity(template.attributes().len());
+        for attribute in template.attributes().iter_mut() {
+            let attr = CK_ATTRIBUTE {
+                type_: attribute.key(),
+                pValue: attribute.value().value(),
+                ulValueLen: attribute.value().len(),
+            };
+            attributes.push(attr);
+        }
+
+        let object = unsafe {
+            let create_object = (*self.cryptoki.functions)
+                .C_CreateObject
+                .ok_or(ErrorKind::LoadModule)?;
+            let mut object = Object {
+                handle: mem::uninitialized(),
+                session: self,
+            };
+
+            try_ck!(create_object(
+                self.handle,
+                attributes.as_mut_ptr(),
+                attributes.len() as CK_ULONG,
+                &mut object.handle
+            ));
+            object
+        };
+        Ok(object)
     }
 }
 
@@ -168,7 +203,7 @@ mod tests {
             .module("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
-        let session = module.session(1723281416, SessionFlags::RW).unwrap();
+        let mut session = module.session(1723281416, SessionFlags::RW).unwrap();
         let info = session.info().unwrap();
 
         assert!(info.flags().contains(SessionFlags::RW));
