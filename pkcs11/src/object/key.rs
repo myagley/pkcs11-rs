@@ -1,6 +1,6 @@
 use pkcs11_sys::*;
 
-use crate::object::{Attribute, AttributeValue};
+use crate::object::{Attribute, AttributeValue, ObjectClass, Template};
 
 /// A value that identifies a key type.
 ///
@@ -114,34 +114,141 @@ pub struct PublicKeyTemplate {
 
 impl PublicKeyTemplate {
     pub fn new() -> Self {
-        Self {
-            attributes: Vec::new(),
-        }
+        let attribute = Attribute::new(
+            CKA_CLASS.into(),
+            AttributeValue::ObjectClass(ObjectClass::PublicKey.into()),
+        );
+        let attributes = vec![attribute];
+        Self { attributes }
     }
 
     pub fn key_type<'a>(&'a mut self, key_type: KeyType) -> &'a mut Self {
         let attribute = Attribute::new(
-            CKA_KEY_TYPE as u64,
+            CKA_KEY_TYPE.into(),
             AttributeValue::KeyType(key_type.into()),
         );
         self.attributes.push(attribute);
         self
     }
 
-    pub fn id<'a>(&'a mut self, id: Vec<u8>) -> &'a mut Self {
-        let attribute = Attribute::new(CKA_ID as u64, AttributeValue::Bytes(id));
+    attr_bytes!(id, CKA_ID);
+    // attr_date!(start_date, CKA_START_DATE);
+    // attr_date!(end_date, CKA_END_DATE);
+    attr_bool!(can_derive, CKA_DERIVE);
+    attr_bool!(is_local, CKA_LOCAL);
+    //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
+    //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
+
+    attr_bytes!(subject, CKA_SUBJECT);
+    attr_bool!(can_encrypt, CKA_ENCRYPT);
+    attr_bool!(can_verify, CKA_VERIFY);
+    attr_bool!(can_verify_recover, CKA_VERIFY_RECOVER);
+    attr_bool!(can_wrap, CKA_WRAP);
+    attr_bool!(is_trusted, CKA_TRUSTED);
+    //attr_attr_array!(wrap_template, CKA_WRAP_TEMPLATE);
+    attr_bytes!(public_key_info, CKA_PUBLIC_KEY_INFO);
+}
+
+pub struct PrivateKeyTemplate {
+    attributes: Vec<Attribute>,
+}
+
+impl PrivateKeyTemplate {
+    pub fn new() -> Self {
+        let attribute = Attribute::new(
+            CKA_CLASS.into(),
+            AttributeValue::ObjectClass(ObjectClass::PrivateKey.into()),
+        );
+        let attributes = vec![attribute];
+        Self { attributes }
+    }
+
+    pub fn key_type<'a>(&'a mut self, key_type: KeyType) -> &'a mut Self {
+        let attribute = Attribute::new(
+            CKA_KEY_TYPE.into(),
+            AttributeValue::KeyType(key_type.into()),
+        );
         self.attributes.push(attribute);
         self
     }
 
-    pub fn can_derive<'a>(&'a mut self, can_derive: bool) -> &'a mut Self {
-        let value = if can_derive {
-            AttributeValue::Bool(CK_TRUE as CK_BBOOL)
-        } else {
-            AttributeValue::Bool(CK_FALSE as CK_BBOOL)
-        };
-        let attribute = Attribute::new(CKA_DERIVE as u64, value);
+    attr_bytes!(id, CKA_ID);
+    // attr_date!(start_date, CKA_START_DATE);
+    // attr_date!(end_date, CKA_END_DATE);
+    attr_bool!(can_derive, CKA_DERIVE);
+    attr_bool!(is_local, CKA_LOCAL);
+    //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
+    //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
+
+    attr_bytes!(subject, CKA_SUBJECT);
+    attr_bool!(is_sensitive, CKA_SENSITIVE);
+    attr_bool!(can_decrypt, CKA_DECRYPT);
+    attr_bool!(can_sign, CKA_SIGN);
+    attr_bool!(can_sign_recover, CKA_SIGN_RECOVER);
+    attr_bool!(can_unwrap, CKA_UNWRAP);
+    attr_bool!(is_extractable, CKA_EXTRACTABLE);
+    attr_bool!(always_sensitive, CKA_ALWAYS_SENSITIVE);
+    attr_bool!(never_extractable, CKA_NEVER_EXTRACTABLE);
+    attr_bool!(only_wrap_with_trusted, CKA_WRAP_WITH_TRUSTED);
+    //attr_attr_array!(unwrap_template, CKA_UNWRAP_TEMPLATE);
+    attr_bool!(alway_authenticate, CKA_ALWAYS_AUTHENTICATE);
+    attr_bytes!(public_key_info, CKA_PUBLIC_KEY_INFO);
+}
+
+pub struct SecretKeyTemplate {
+    attributes: Vec<Attribute>,
+}
+
+impl SecretKeyTemplate {
+    pub fn new() -> Self {
+        let attribute = Attribute::new(
+            CKA_CLASS.into(),
+            AttributeValue::ObjectClass(ObjectClass::SecretKey.into()),
+        );
+        let attributes = vec![attribute];
+        Self { attributes }
+    }
+
+    pub fn key_type<'a>(&'a mut self, key_type: KeyType) -> &'a mut Self {
+        let attribute = Attribute::new(
+            CKA_KEY_TYPE.into(),
+            AttributeValue::KeyType(key_type.into()),
+        );
         self.attributes.push(attribute);
         self
+    }
+
+    attr_bytes!(id, CKA_ID);
+    // attr_date!(start_date, CKA_START_DATE);
+    // attr_date!(end_date, CKA_END_DATE);
+    attr_bool!(can_derive, CKA_DERIVE);
+    attr_bool!(is_local, CKA_LOCAL);
+    //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
+    //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
+
+    attr_bool!(is_sensitive, CKA_SENSITIVE);
+    attr_bool!(can_encrypt, CKA_ENCRYPT);
+    attr_bool!(can_decrypt, CKA_DECRYPT);
+    attr_bool!(can_sign, CKA_SIGN);
+    attr_bool!(can_verify, CKA_VERIFY);
+    attr_bool!(can_wrap, CKA_WRAP);
+    attr_bool!(can_unwrap, CKA_UNWRAP);
+    attr_bool!(is_extractable, CKA_EXTRACTABLE);
+    attr_bool!(always_sensitive, CKA_ALWAYS_SENSITIVE);
+    attr_bool!(never_extractable, CKA_NEVER_EXTRACTABLE);
+    attr_bytes!(check_value, CKA_CHECK_VALUE);
+    attr_bool!(only_wrap_with_trusted, CKA_WRAP_WITH_TRUSTED);
+    attr_bool!(is_trusted, CKA_TRUSTED);
+    //attr_attr_array!(wrap_template, CKA_WRAP_TEMPLATE);
+    //attr_attr_array!(unwrap_template, CKA_UNWRAP_TEMPLATE);
+}
+
+impl Template for SecretKeyTemplate {
+    fn attributes(&self) -> &[Attribute] {
+        &self.attributes
+    }
+
+    fn attributes_mut(&mut self) -> &mut [Attribute] {
+        &mut self.attributes
     }
 }

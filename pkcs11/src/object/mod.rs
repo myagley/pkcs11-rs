@@ -5,16 +5,6 @@ use pkcs11_sys::*;
 
 use crate::Session;
 
-mod certificate;
-mod hardware;
-mod key;
-mod mechanism;
-
-pub use certificate::CertificateType;
-pub use hardware::HwFeatureType;
-pub use key::{KeyType, PublicKeyTemplate};
-pub use mechanism::MechanismType;
-
 /// A token-specific identifier for an object.
 ///
 /// Object handles are tied to a session.
@@ -122,5 +112,41 @@ impl AttributeValue {
 }
 
 pub trait Template {
-    fn attributes(&self) -> &mut [Attribute];
+    fn attributes(&self) -> &[Attribute];
+    fn attributes_mut(&mut self) -> &mut [Attribute];
 }
+
+macro_rules! r#attr_bool {
+    ($op:ident,$attr:ident) => {
+        pub fn $op<'a>(&'a mut self, $op: bool) -> &'a mut Self {
+            let value = if $op {
+                $crate::object::AttributeValue::Bool(pkcs11_sys::CK_TRUE as pkcs11_sys::CK_BBOOL)
+            } else {
+                $crate::object::AttributeValue::Bool(pkcs11_sys::CK_FALSE as pkcs11_sys::CK_BBOOL)
+            };
+            let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), value);
+            self.attributes.push(attribute);
+            self
+        }
+    }
+}
+
+macro_rules! r#attr_bytes {
+    ($op:ident,$attr:ident) => {
+        pub fn $op<'a>(&'a mut self, $op: Vec<u8>) -> &'a mut Self {
+            let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::Bytes($op));
+            self.attributes.push(attribute);
+            self
+        }
+    }
+}
+
+mod certificate;
+mod hardware;
+mod key;
+mod mechanism;
+
+pub use certificate::CertificateType;
+pub use hardware::HwFeatureType;
+pub use key::{KeyType, PrivateKeyTemplate, PublicKeyTemplate, SecretKeyTemplate};
+pub use mechanism::MechanismType;

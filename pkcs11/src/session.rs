@@ -59,7 +59,7 @@ impl<'c> Session<'c> {
         template: &mut T,
     ) -> Result<Object<'c, 's>, Error> {
         let mut attributes = Vec::with_capacity(template.attributes().len());
-        for attribute in template.attributes().iter_mut() {
+        for attribute in template.attributes_mut() {
             let attr = CK_ATTRIBUTE {
                 type_: attribute.key(),
                 pValue: attribute.value().value(),
@@ -182,6 +182,7 @@ impl From<UserType> for CK_USER_TYPE {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::object::*;
     use crate::Builder;
 
     #[test]
@@ -221,4 +222,28 @@ mod tests {
         assert!(info.flags().contains(SessionFlags::RW));
         assert_eq!(SessionState::RwPublic, info.state());
     }
+
+    // #[test]
+    // fn test_create_object() {
+    //     let module = Builder::new()
+    //         .module("/usr/local/lib/softhsm/libsofthsm2.so")
+    //         .initialize()
+    //         .unwrap();
+    //     let mut session = module.session(1723281416, SessionFlags::RW).unwrap();
+    //     let info = session.info().unwrap();
+    //
+    //     assert!(info.flags().contains(SessionFlags::RW));
+    //     assert_eq!(SessionState::RwPublic, info.state());
+    //
+    //     session.login(UserType::User, "1234").unwrap();
+    //     let info = session.info().unwrap();
+    //
+    //     let mut template = SecretKeyTemplate::new();
+    //     template.key_type(KeyType::Sha256Hmac)
+    //         .can_sign(true)
+    //         .can_verify(true)
+    //         .can_wrap(true)
+    //         .can_unwrap(true);
+    //     let object = session.create_object(&mut template).unwrap();
+    // }
 }

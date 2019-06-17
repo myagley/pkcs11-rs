@@ -12,6 +12,7 @@ use pkcs11_sys::*;
 
 #[macro_use]
 mod error;
+#[macro_use]
 pub mod object;
 pub mod session;
 
