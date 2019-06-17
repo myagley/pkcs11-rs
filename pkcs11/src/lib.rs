@@ -12,6 +12,7 @@ use pkcs11_sys::*;
 
 #[macro_use]
 mod error;
+pub mod object;
 pub mod session;
 
 pub use crate::error::{Error, ErrorKind, FunctionErrorReason};
