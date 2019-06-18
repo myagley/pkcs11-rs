@@ -98,12 +98,12 @@ impl<'c> Session<'c> {
         &mut self,
         key: &Object,
         mechanism: MechanismType,
-        tbs: &[u8],
+        data: &[u8],
     ) -> Result<Vec<u8>, Error> {
         // Make a copy of the input. The API requires this to be *mut
         // but we don't want the caller to have to be mutable and we
         // still want to be safe-ish
-        let mut tbs = Vec::from(tbs);
+        let mut data = Vec::from(data);
         let signature = unsafe {
             let sign_init = (*self.cryptoki.functions)
                 .C_SignInit
@@ -127,8 +127,8 @@ impl<'c> Session<'c> {
             let null_ptr = std::ptr::null_mut();
             try_ck!(sign(
                 self.handle,
-                tbs.as_mut_ptr(),
-                tbs.len() as CK_ULONG,
+                data.as_mut_ptr(),
+                data.len() as CK_ULONG,
                 null_ptr,
                 &mut size
             ));
@@ -137,8 +137,8 @@ impl<'c> Session<'c> {
             let mut signature = Vec::with_capacity(size as usize);
             try_ck!(sign(
                 self.handle,
-                tbs.as_mut_ptr(),
-                tbs.len() as CK_ULONG,
+                data.as_mut_ptr(),
+                data.len() as CK_ULONG,
                 signature.as_mut_ptr(),
                 &mut size
             ));
@@ -146,6 +146,55 @@ impl<'c> Session<'c> {
             signature
         };
         Ok(signature)
+    }
+
+    pub fn verify(
+        &mut self,
+        key: &Object,
+        mechanism: MechanismType,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Error> {
+        // Make a copy of the input. The API requires this to be *mut
+        // but we don't want the caller to have to be mutable and we
+        // still want to be safe-ish
+        let mut data = Vec::from(data);
+        let mut signature = Vec::from(signature);
+        let verified = unsafe {
+            let verify_init = (*self.cryptoki.functions)
+                .C_VerifyInit
+                .ok_or(ErrorKind::MissingFunction("C_VerifyInit"))?;
+            let verify = (*self.cryptoki.functions)
+                .C_Verify
+                .ok_or(ErrorKind::MissingFunction("C_Verify"))?;
+
+            let null = std::ptr::null_mut();
+            let mut mechanism = CK_MECHANISM {
+                mechanism: mechanism.into(),
+                pParameter: null,
+                ulParameterLen: 0,
+            };
+
+            // Initialize the sign operation
+            try_ck!(verify_init(self.handle, &mut mechanism, key.handle));
+
+            // Verify
+            let rv = verify(
+                self.handle,
+                data.as_mut_ptr(),
+                data.len() as CK_ULONG,
+                signature.as_mut_ptr(),
+                signature.len() as CK_ULONG,
+            );
+
+            if rv == CKR_SIGNATURE_INVALID.into() {
+                false
+            } else {
+                try_ck!(rv);
+                true
+            }
+        };
+        Ok(verified)
     }
 }
 

@@ -18,16 +18,19 @@ fn run() -> Result<(), Error> {
     let mut template = SecretKeyTemplate::new();
     template
         .key_type(KeyType::Sha256Hmac)
-        .can_sign(true)
-        .can_verify(true)
+        .label("sas-key".to_string())
         .value(
             base64::decode("vSnr9DjnpfTCTjtG1LpFv4Ie476NBtOAyjUPzg4Y+H8=").expect("Invalid base64"),
-        )
-        // .is_token_object(true)
-        .label("my secret key".to_string());
-    let object = session.create_object(&mut template)?;
-    let signature = session.sign(&object, MechanismType::Sha256Hmac, "hello".as_bytes())?;
-    println!("signature: \"{}\"", base64::encode(&signature));
-
+        );
+    let key = session.create_object(&mut template)?;
+    let signature = session.sign(&key, MechanismType::Sha256Hmac, "hello".as_bytes())?;
+    let verified = session.verify(
+        &key,
+        MechanismType::Sha256Hmac,
+        "hello".as_bytes(),
+        &signature,
+    )?;
+    println!("signature: {}", base64::encode(&signature));
+    println!("verified:  {}", verified);
     Ok(())
 }
