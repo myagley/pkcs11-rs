@@ -4,7 +4,7 @@ use std::ops::Drop;
 use bitflags::bitflags;
 use pkcs11_sys::*;
 
-use crate::object::{Object, Template};
+use crate::object::{MechanismType, Object, Template};
 use crate::{Cryptoki, Error, ErrorKind, SlotId};
 
 pub struct Session<'c> {
@@ -92,6 +92,60 @@ impl<'c> Session<'c> {
             try_ck!(destroy_object(self.handle, object.handle));
         }
         Ok(())
+    }
+
+    pub fn sign(
+        &mut self,
+        key: &Object,
+        mechanism: MechanismType,
+        tbs: &[u8],
+    ) -> Result<Vec<u8>, Error> {
+        // Make a copy of the input. The API requires this to be *mut
+        // but we don't want the caller to have to be mutable and we
+        // still want to be safe-ish
+        let mut tbs = Vec::from(tbs);
+        let signature = unsafe {
+            let sign_init = (*self.cryptoki.functions)
+                .C_SignInit
+                .ok_or(ErrorKind::MissingFunction("C_SignInit"))?;
+            let sign = (*self.cryptoki.functions)
+                .C_Sign
+                .ok_or(ErrorKind::MissingFunction("C_Sign"))?;
+
+            let null = std::ptr::null_mut();
+            let mut mechanism = CK_MECHANISM {
+                mechanism: mechanism.into(),
+                pParameter: null,
+                ulParameterLen: 0,
+            };
+
+            // Initialize the sign operation
+            try_ck!(sign_init(self.handle, &mut mechanism, key.handle));
+
+            // Get the size
+            let mut size: CK_ULONG = mem::uninitialized();
+            let null_ptr = std::ptr::null_mut();
+            try_ck!(sign(
+                self.handle,
+                tbs.as_mut_ptr(),
+                tbs.len() as CK_ULONG,
+                null_ptr,
+                &mut size
+            ));
+
+            // Get the signature
+            let mut signature = Vec::with_capacity(size as usize);
+            try_ck!(sign(
+                self.handle,
+                tbs.as_mut_ptr(),
+                tbs.len() as CK_ULONG,
+                signature.as_mut_ptr(),
+                &mut size
+            ));
+            signature.set_len(size as usize);
+            signature
+        };
+        Ok(signature)
     }
 }
 
