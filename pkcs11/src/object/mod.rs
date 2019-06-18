@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::mem;
+use std::ops::Deref;
 
 use pkcs11_sys::*;
 
@@ -91,7 +92,9 @@ impl AttributeValue {
             AttributeValue::Bool(ref mut b) => b as *mut _ as *mut c_void,
             AttributeValue::Bytes(ref mut b) => b.as_mut_ptr() as *mut c_void,
             AttributeValue::Num(ref mut n) => n as *mut _ as *mut c_void,
-            AttributeValue::String(ref mut s) => s as *mut _ as *mut c_void,
+            AttributeValue::String(ref mut s) => unsafe {
+                s.as_bytes_mut() as *mut _ as *mut c_void
+            },
             AttributeValue::Date(ref mut d) => d as *mut _ as *mut c_void,
         }
     }
@@ -135,6 +138,16 @@ macro_rules! r#attr_bytes {
     ($op:ident,$attr:ident) => {
         pub fn $op<'a>(&'a mut self, $op: Vec<u8>) -> &'a mut Self {
             let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::Bytes($op));
+            self.attributes.push(attribute);
+            self
+        }
+    }
+}
+
+macro_rules! r#attr_string {
+    ($op:ident,$attr:ident) => {
+        pub fn $op<'a>(&'a mut self, $op: String) -> &'a mut Self {
+            let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::String($op));
             self.attributes.push(attribute);
             self
         }

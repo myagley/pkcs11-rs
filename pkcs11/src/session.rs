@@ -182,67 +182,48 @@ impl From<UserType> for CK_USER_TYPE {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::object::{KeyType, SecretKeyTemplate};
     use crate::Builder;
 
-    #[test]
-    fn test_session_info() {
-        let module = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
-            .initialize()
-            .unwrap();
-        let session = module.session(1723281416, SessionFlags::RW).unwrap();
-        let info = session.info().unwrap();
-
-        assert!(info.flags().contains(SessionFlags::RW));
-        assert_eq!(SessionState::RwPublic, info.state());
-    }
-
-    #[test]
-    fn test_session_login() {
-        let module = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
-            .initialize()
-            .unwrap();
-        let mut session = module.session(1723281416, SessionFlags::RW).unwrap();
-        let info = session.info().unwrap();
-
-        assert!(info.flags().contains(SessionFlags::RW));
-        assert_eq!(SessionState::RwPublic, info.state());
-
-        session.login(UserType::User, "1234").unwrap();
-        let info = session.info().unwrap();
-
-        assert!(info.flags().contains(SessionFlags::RW));
-        assert_eq!(SessionState::RwUserFunctions, info.state());
-
-        session.logout().unwrap();
-        let info = session.info().unwrap();
-
-        assert!(info.flags().contains(SessionFlags::RW));
-        assert_eq!(SessionState::RwPublic, info.state());
-    }
-
     // #[test]
-    // fn test_create_object() {
+    // fn test_session_login() {
     //     let module = Builder::new()
     //         .module("/usr/local/lib/softhsm/libsofthsm2.so")
     //         .initialize()
     //         .unwrap();
-    //     let mut session = module.session(1723281416, SessionFlags::RW).unwrap();
+    //     let mut session = module.session(595651617, SessionFlags::RW).unwrap();
     //     let info = session.info().unwrap();
     //
-    //     assert!(info.flags().contains(SessionFlags::RW));
     //     assert_eq!(SessionState::RwPublic, info.state());
     //
     //     session.login(UserType::User, "1234").unwrap();
     //     let info = session.info().unwrap();
     //
-    //     let mut template = SecretKeyTemplate::new();
-    //     template.key_type(KeyType::Sha256Hmac)
-    //         .can_sign(true)
-    //         .can_verify(true)
-    //         .can_wrap(true)
-    //         .can_unwrap(true);
-    //     let object = session.create_object(&mut template).unwrap();
+    //     assert_eq!(SessionState::RwUserFunctions, info.state());
+    //
+    //     session.logout().unwrap();
+    //     let info = session.info().unwrap();
+    //
+    //     assert_eq!(SessionState::RoPublic, info.state());
     // }
+
+    #[test]
+    fn test_create_object() {
+        let module = Builder::new()
+            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+            .initialize()
+            .unwrap();
+        let mut session = module.session(595651617, SessionFlags::RW).unwrap();
+        session.login(UserType::User, "1234").unwrap();
+
+        let mut template = SecretKeyTemplate::new();
+        template
+            .key_type(KeyType::Sha256Hmac)
+            .can_sign(true)
+            .can_verify(true)
+            .value(base64::decode("vSnr9DjnpfTCTjtG1LpFv4Ie476NBtOAyjUPzg4Y+H8=").unwrap())
+            // .is_token_object(true)
+            .label("my secret key".to_string());
+        let object = session.create_object(&mut template).unwrap();
+    }
 }

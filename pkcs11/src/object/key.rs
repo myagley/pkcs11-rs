@@ -131,6 +131,15 @@ impl PublicKeyTemplate {
         self
     }
 
+    // Common attributes
+    attr_bool!(is_token_object, CKA_TOKEN);
+    attr_bool!(is_private, CKA_PRIVATE);
+    attr_bool!(is_modifiable, CKA_MODIFIABLE);
+    attr_string!(label, CKA_LABEL);
+    attr_bool!(is_copyable, CKA_COPYABLE);
+    attr_bool!(is_destroyable, CKA_DESTROYABLE);
+
+    // Common key attributes
     attr_bytes!(id, CKA_ID);
     // attr_date!(start_date, CKA_START_DATE);
     // attr_date!(end_date, CKA_END_DATE);
@@ -138,7 +147,9 @@ impl PublicKeyTemplate {
     attr_bool!(is_local, CKA_LOCAL);
     //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
     //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
+    attr_bytes!(value, CKA_VALUE);
 
+    // Public key attributes
     attr_bytes!(subject, CKA_SUBJECT);
     attr_bool!(can_encrypt, CKA_ENCRYPT);
     attr_bool!(can_verify, CKA_VERIFY);
@@ -172,6 +183,15 @@ impl PrivateKeyTemplate {
         self
     }
 
+    // Common attributes
+    attr_bool!(is_token_object, CKA_TOKEN);
+    attr_bool!(is_private, CKA_PRIVATE);
+    attr_bool!(is_modifiable, CKA_MODIFIABLE);
+    attr_string!(label, CKA_LABEL);
+    attr_bool!(is_copyable, CKA_COPYABLE);
+    attr_bool!(is_destroyable, CKA_DESTROYABLE);
+
+    // Common key attributes
     attr_bytes!(id, CKA_ID);
     // attr_date!(start_date, CKA_START_DATE);
     // attr_date!(end_date, CKA_END_DATE);
@@ -179,7 +199,9 @@ impl PrivateKeyTemplate {
     attr_bool!(is_local, CKA_LOCAL);
     //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
     //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
+    attr_bytes!(value, CKA_VALUE);
 
+    // Private key attributes
     attr_bytes!(subject, CKA_SUBJECT);
     attr_bool!(is_sensitive, CKA_SENSITIVE);
     attr_bool!(can_decrypt, CKA_DECRYPT);
@@ -218,6 +240,15 @@ impl SecretKeyTemplate {
         self
     }
 
+    // Common attributes
+    attr_bool!(is_token_object, CKA_TOKEN);
+    attr_bool!(is_private, CKA_PRIVATE);
+    attr_bool!(is_modifiable, CKA_MODIFIABLE);
+    attr_string!(label, CKA_LABEL);
+    attr_bool!(is_copyable, CKA_COPYABLE);
+    attr_bool!(is_destroyable, CKA_DESTROYABLE);
+
+    // Common key attributes
     attr_bytes!(id, CKA_ID);
     // attr_date!(start_date, CKA_START_DATE);
     // attr_date!(end_date, CKA_END_DATE);
@@ -225,7 +256,9 @@ impl SecretKeyTemplate {
     attr_bool!(is_local, CKA_LOCAL);
     //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
     //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
+    attr_bytes!(value, CKA_VALUE);
 
+    // Secret key attributes
     attr_bool!(is_sensitive, CKA_SENSITIVE);
     attr_bool!(can_encrypt, CKA_ENCRYPT);
     attr_bool!(can_decrypt, CKA_DECRYPT);

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::convert::From;
+use std::ffi::c_void;
 use std::mem;
 use std::path::PathBuf;
 use std::str;
@@ -62,10 +63,19 @@ impl Builder {
         if !initialized.contains(&self.module_path) {
             unsafe {
                 let arg = std::ptr::null_mut();
+                let mut args = CK_C_INITIALIZE_ARGS {
+                    CreateMutex: None,
+                    DestroyMutex: None,
+                    LockMutex: None,
+                    UnlockMutex: None,
+                    flags: CKF_OS_LOCKING_OK as CK_FLAGS,
+                    pReserved: arg,
+                };
+
                 try_ck!((*functions)
                     .C_Initialize
                     .ok_or(ErrorKind::MissingFunction("C_Initialize"))?(
-                    arg
+                    &mut args as *mut _ as *mut c_void,
                 ));
             }
             initialized.insert(self.module_path.clone());
