@@ -54,10 +54,7 @@ impl<'c> Session<'c> {
         Ok(())
     }
 
-    pub fn create_object<'s, T: Template>(
-        &'s mut self,
-        template: &mut T,
-    ) -> Result<Object<'c, 's>, Error> {
+    pub fn create_object<T: Template>(&mut self, template: &mut T) -> Result<Object, Error> {
         let mut attributes = Vec::with_capacity(template.attributes().len());
         for attribute in template.attributes_mut() {
             let attr = CK_ATTRIBUTE {
@@ -74,7 +71,6 @@ impl<'c> Session<'c> {
                 .ok_or(ErrorKind::MissingFunction("C_CreateObject"))?;
             let mut object = Object {
                 handle: mem::uninitialized(),
-                session: self,
             };
 
             try_ck!(create_object(
@@ -86,6 +82,16 @@ impl<'c> Session<'c> {
             object
         };
         Ok(object)
+    }
+
+    pub fn destroy_object(&mut self, object: Object) -> Result<(), Error> {
+        unsafe {
+            let destroy_object = (*self.cryptoki.functions)
+                .C_DestroyObject
+                .ok_or(ErrorKind::MissingFunction("C_DestroyObject"))?;
+            try_ck!(destroy_object(self.handle, object.handle));
+        }
+        Ok(())
     }
 }
 

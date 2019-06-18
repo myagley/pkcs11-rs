@@ -1,19 +1,11 @@
 use std::ffi::c_void;
 use std::mem;
-use std::ops::Deref;
 
 use pkcs11_sys::*;
 
-use crate::Session;
-
 /// A token-specific identifier for an object.
-///
-/// Object handles are tied to a session.
-/// This handle is only valid for the particular session in use.
-/// Hence, the reference to a session.
-pub struct Object<'c, 's> {
+pub struct Object {
     pub(crate) handle: CK_OBJECT_HANDLE,
-    pub(crate) session: &'s Session<'c>,
 }
 
 /// A value that identifies the classes (or types) of objects that Cryptoki
