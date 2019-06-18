@@ -170,6 +170,41 @@ impl Cryptoki {
         Ok(mechanism_info)
     }
 
+    /// Used to obtain a list of mechanism types supported by a token.
+    ///
+    /// `slot_id` is the ID of the token’s slot
+    pub fn mechanism_list<S: Into<SlotId>>(&self, slot_id: S) -> Result<Vec<MechanismType>, Error> {
+        let types = unsafe {
+            let slot_id = slot_id.into();
+            let get_mechanism_list = (*self.functions)
+                .C_GetMechanismList
+                .ok_or(ErrorKind::MissingFunction("C_GetMechanismList"))?;
+
+            // Get the count of slots
+            let mut count: CK_ULONG = mem::uninitialized();
+            let arg = std::ptr::null_mut();
+            try_ck!(get_mechanism_list(
+                slot_id.0,
+                arg,
+                (&mut count) as *mut CK_ULONG
+            ));
+
+            // Fill in the data
+            let mut types = Vec::with_capacity(count as usize);
+            try_ck!(get_mechanism_list(
+                slot_id.0,
+                types.as_mut_ptr(),
+                (&mut count) as *mut CK_ULONG
+            ));
+            types.set_len(count as usize);
+            types
+        };
+        Ok(types
+            .iter()
+            .map(|type_| MechanismType::from(*type_))
+            .collect())
+    }
+
     /// Used to obtain a list of slots in the system
     pub fn slot_list(&self, option: SlotsOption) -> Result<Vec<SlotId>, Error> {
         let ids = unsafe {
@@ -574,5 +609,15 @@ mod tests {
         assert_eq!(MechanismFlags::SIGN | MechanismFlags::VERIFY, info.flags());
         assert_eq!(32, info.min_key_size());
         assert_eq!(512, info.max_key_size());
+    }
+
+    #[test]
+    fn test_mechanism_list() {
+        let cryptoki = Builder::new()
+            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+            .initialize()
+            .unwrap();
+        let types = cryptoki.mechanism_list(1).unwrap();
+        assert_eq!(72, types.len());
     }
 }
