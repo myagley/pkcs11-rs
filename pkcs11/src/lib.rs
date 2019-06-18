@@ -25,29 +25,29 @@ lazy_static! {
     static ref INITIALIZED_CRYPTOKI: Mutex<HashSet<PathBuf>> = Mutex::new(HashSet::new());
 }
 
-pub struct Cryptoki {
+pub struct Module {
     functions: CK_FUNCTION_LIST_PTR,
     _lib: lib::Library,
     version: CK_VERSION,
 }
 
-pub struct Builder {
+pub struct ModuleBuilder {
     module_path: PathBuf,
 }
 
-impl Builder {
+impl ModuleBuilder {
     pub fn new() -> Self {
-        Builder {
+        ModuleBuilder {
             module_path: "/usr/lib/opensc-pkcs11.so".into(),
         }
     }
 
-    pub fn module<'a, P: Into<PathBuf>>(&'a mut self, module_path: P) -> &'a mut Self {
+    pub fn path<'a, P: Into<PathBuf>>(&'a mut self, module_path: P) -> &'a mut Self {
         self.module_path = module_path.into();
         self
     }
 
-    pub fn initialize<'a>(&self) -> Result<Cryptoki, Error> {
+    pub fn initialize<'a>(&self) -> Result<Module, Error> {
         let lib = lib::Library::new(&self.module_path).context(ErrorKind::LoadModule)?;
         let functions = unsafe {
             let mut list: CK_FUNCTION_LIST_PTR = mem::uninitialized();
@@ -89,16 +89,16 @@ impl Builder {
             }
         };
 
-        let token = Cryptoki {
+        let module = Module {
             functions,
             _lib: lib,
             version,
         };
-        Ok(token)
+        Ok(module)
     }
 }
 
-impl Cryptoki {
+impl Module {
     /// Cryptoki API version
     pub fn version(&self) -> Version {
         Version {
@@ -264,7 +264,7 @@ impl Cryptoki {
         let session = unsafe {
             let mut session = Session {
                 slot_id,
-                cryptoki: self,
+                module: self,
                 handle: mem::uninitialized(),
             };
             let p_application = std::ptr::null_mut();
@@ -508,8 +508,8 @@ mod tests {
 
     #[test]
     fn test_version() {
-        let cryptoki = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+        let module = ModuleBuilder::new()
+            .path("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
 
@@ -517,16 +517,16 @@ mod tests {
             major: 2,
             minor: 40,
         };
-        assert_eq!(expected, cryptoki.version());
+        assert_eq!(expected, module.version());
     }
 
     #[test]
     fn test_info() {
-        let cryptoki = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+        let module = ModuleBuilder::new()
+            .path("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
-        let info = cryptoki.info().unwrap();
+        let info = module.info().unwrap();
         let expected_library_version = Version { major: 2, minor: 5 };
         let expected_cryptoki_version = Version {
             major: 2,
@@ -543,11 +543,11 @@ mod tests {
 
     #[test]
     fn test_slot_info() {
-        let cryptoki = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+        let module = ModuleBuilder::new()
+            .path("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
-        let info = cryptoki.slot_info(1).unwrap();
+        let info = module.slot_info(1).unwrap();
         let expected_hardware_version = Version { major: 2, minor: 5 };
         let expected_firmware_version = Version { major: 2, minor: 5 };
 
@@ -564,11 +564,11 @@ mod tests {
     #[test]
     #[ignore]
     fn test_token_info() {
-        let cryptoki = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+        let module = ModuleBuilder::new()
+            .path("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
-        let info = cryptoki.token_info(1).unwrap();
+        let info = module.token_info(1).unwrap();
         let expected_hardware_version = Version { major: 2, minor: 5 };
         let expected_firmware_version = Version { major: 2, minor: 5 };
         let expected_public_memory = Memory {
@@ -599,23 +599,21 @@ mod tests {
 
     #[test]
     fn test_slots() {
-        let cryptoki = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+        let module = ModuleBuilder::new()
+            .path("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
-        let slots = cryptoki.slot_list(SlotsOption::TokenPresent).unwrap();
+        let slots = module.slot_list(SlotsOption::TokenPresent).unwrap();
         assert_eq!(2, slots.len());
     }
 
     #[test]
     fn test_mechanism_info() {
-        let cryptoki = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+        let module = ModuleBuilder::new()
+            .path("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
-        let info = cryptoki
-            .mechanism_info(1, MechanismType::Sha256Hmac)
-            .unwrap();
+        let info = module.mechanism_info(1, MechanismType::Sha256Hmac).unwrap();
         assert_eq!(MechanismFlags::SIGN | MechanismFlags::VERIFY, info.flags());
         assert_eq!(32, info.min_key_size());
         assert_eq!(512, info.max_key_size());
@@ -623,11 +621,11 @@ mod tests {
 
     #[test]
     fn test_mechanism_list() {
-        let cryptoki = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+        let module = ModuleBuilder::new()
+            .path("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
-        let types = cryptoki.mechanism_list(1).unwrap();
+        let types = module.mechanism_list(1).unwrap();
         assert_eq!(72, types.len());
     }
 }

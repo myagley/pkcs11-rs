@@ -5,11 +5,11 @@ use bitflags::bitflags;
 use pkcs11_sys::*;
 
 use crate::object::{MechanismType, Object, Template};
-use crate::{Cryptoki, Error, ErrorKind, SlotId};
+use crate::{Error, ErrorKind, Module, SlotId};
 
-pub struct Session<'c> {
+pub struct Session<'m> {
     pub(crate) slot_id: SlotId,
-    pub(crate) cryptoki: &'c Cryptoki,
+    pub(crate) module: &'m Module,
     pub(crate) handle: CK_SESSION_HANDLE,
 }
 
@@ -19,7 +19,7 @@ impl<'c> Session<'c> {
             let mut info = SessionInfo {
                 inner: mem::uninitialized(),
             };
-            let get_session = (*self.cryptoki.functions)
+            let get_session = (*self.module.functions)
                 .C_GetSessionInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetSessionInfo"))?;
             try_ck!(get_session(self.handle, &mut info.inner));
@@ -31,7 +31,7 @@ impl<'c> Session<'c> {
     pub fn login(&mut self, user_type: UserType, pin: &str) -> Result<(), Error> {
         unsafe {
             let mut cpin = String::from(pin);
-            let login = (*self.cryptoki.functions)
+            let login = (*self.module.functions)
                 .C_Login
                 .ok_or(ErrorKind::MissingFunction("C_Login"))?;
             try_ck!(login(
@@ -46,7 +46,7 @@ impl<'c> Session<'c> {
 
     pub fn logout(&mut self) -> Result<(), Error> {
         unsafe {
-            let logout = (*self.cryptoki.functions)
+            let logout = (*self.module.functions)
                 .C_Logout
                 .ok_or(ErrorKind::MissingFunction("C_Logout"))?;
             try_ck!(logout(self.handle));
@@ -66,7 +66,7 @@ impl<'c> Session<'c> {
         }
 
         let object = unsafe {
-            let create_object = (*self.cryptoki.functions)
+            let create_object = (*self.module.functions)
                 .C_CreateObject
                 .ok_or(ErrorKind::MissingFunction("C_CreateObject"))?;
             let mut object = Object {
@@ -86,7 +86,7 @@ impl<'c> Session<'c> {
 
     pub fn destroy_object(&mut self, object: Object) -> Result<(), Error> {
         unsafe {
-            let destroy_object = (*self.cryptoki.functions)
+            let destroy_object = (*self.module.functions)
                 .C_DestroyObject
                 .ok_or(ErrorKind::MissingFunction("C_DestroyObject"))?;
             try_ck!(destroy_object(self.handle, object.handle));
@@ -105,10 +105,10 @@ impl<'c> Session<'c> {
         // still want to be safe-ish
         let mut data = Vec::from(data);
         let signature = unsafe {
-            let sign_init = (*self.cryptoki.functions)
+            let sign_init = (*self.module.functions)
                 .C_SignInit
                 .ok_or(ErrorKind::MissingFunction("C_SignInit"))?;
-            let sign = (*self.cryptoki.functions)
+            let sign = (*self.module.functions)
                 .C_Sign
                 .ok_or(ErrorKind::MissingFunction("C_Sign"))?;
 
@@ -161,10 +161,10 @@ impl<'c> Session<'c> {
         let mut data = Vec::from(data);
         let mut signature = Vec::from(signature);
         let verified = unsafe {
-            let verify_init = (*self.cryptoki.functions)
+            let verify_init = (*self.module.functions)
                 .C_VerifyInit
                 .ok_or(ErrorKind::MissingFunction("C_VerifyInit"))?;
-            let verify = (*self.cryptoki.functions)
+            let verify = (*self.module.functions)
                 .C_Verify
                 .ok_or(ErrorKind::MissingFunction("C_Verify"))?;
 
@@ -201,7 +201,7 @@ impl<'c> Session<'c> {
 impl<'c> Drop for Session<'c> {
     fn drop(&mut self) {
         unsafe {
-            if let Some(close) = (*self.cryptoki.functions).C_CloseSession {
+            if let Some(close) = (*self.module.functions).C_CloseSession {
                 close(self.handle);
             }
         }
@@ -292,7 +292,7 @@ impl From<UserType> for CK_USER_TYPE {
 mod tests {
     use super::*;
     use crate::object::{KeyType, SecretKeyTemplate};
-    use crate::Builder;
+    use crate::ModuleBuilder;
 
     // #[test]
     // fn test_session_login() {
@@ -318,8 +318,8 @@ mod tests {
 
     #[test]
     fn test_create_object() {
-        let module = Builder::new()
-            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+        let module = ModuleBuilder::new()
+            .path("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
         let mut session = module.session(595651617, SessionFlags::RW).unwrap();

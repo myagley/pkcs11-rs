@@ -1,6 +1,6 @@
 use pkcs11::object::{KeyType, MechanismType, SecretKeyTemplate};
 use pkcs11::session::{SessionFlags, UserType};
-use pkcs11::{Builder, Error};
+use pkcs11::{Error, ModuleBuilder};
 
 fn main() {
     if let Err(e) = run() {
@@ -9,8 +9,9 @@ fn main() {
 }
 
 fn run() -> Result<(), Error> {
-    let module = Builder::new()
-        .module("/usr/local/lib/softhsm/libsofthsm2.so")
+    // Initialize pkcs11 module
+    let module = ModuleBuilder::new()
+        .path("/usr/local/lib/softhsm/libsofthsm2.so")
         .initialize()?;
     let mut session = module.session(595651617, SessionFlags::empty())?;
     session.login(UserType::User, "1234")?;
