@@ -17,6 +17,7 @@ pub mod object;
 pub mod session;
 
 pub use crate::error::{Error, ErrorKind, FunctionErrorReason};
+use crate::object::{MechanismInfo, MechanismType};
 use crate::session::{Session, SessionFlags};
 
 lazy_static! {
@@ -141,6 +142,32 @@ impl Cryptoki {
             token_info
         };
         Ok(token_info)
+    }
+
+    /// obtains information about a particular mechanism possibly supported by
+    /// a token.
+    /// slotID is the ID of the token’s slot
+    /// mechanism_type is the type of mechanism
+    pub fn mechanism_info<S: Into<SlotId>>(
+        &self,
+        slot_id: S,
+        mechanism_type: MechanismType,
+    ) -> Result<MechanismInfo, Error> {
+        let mechanism_info = unsafe {
+            let mut mechanism_info = MechanismInfo {
+                inner: mem::uninitialized(),
+            };
+            let get_mechanism_info = (*self.functions)
+                .C_GetMechanismInfo
+                .ok_or(ErrorKind::MissingFunction("C_GetMechanismInfo"))?;
+            try_ck!(get_mechanism_info(
+                slot_id.into().0,
+                mechanism_type.into(),
+                &mut mechanism_info.inner
+            ));
+            mechanism_info
+        };
+        Ok(mechanism_info)
     }
 
     /// Used to obtain a list of slots in the system
@@ -432,6 +459,8 @@ impl TokenInfo {
 mod tests {
     use super::*;
 
+    use crate::object::MechanismFlags;
+
     #[test]
     fn test_version() {
         let cryptoki = Builder::new()
@@ -531,5 +560,19 @@ mod tests {
             .unwrap();
         let slots = cryptoki.slot_list(SlotsOption::TokenPresent).unwrap();
         assert_eq!(2, slots.len());
+    }
+
+    #[test]
+    fn test_mechanism_info() {
+        let cryptoki = Builder::new()
+            .module("/usr/local/lib/softhsm/libsofthsm2.so")
+            .initialize()
+            .unwrap();
+        let info = cryptoki
+            .mechanism_info(1, MechanismType::Sha256Hmac)
+            .unwrap();
+        assert_eq!(MechanismFlags::SIGN | MechanismFlags::VERIFY, info.flags());
+        assert_eq!(32, info.min_key_size());
+        assert_eq!(512, info.max_key_size());
     }
 }

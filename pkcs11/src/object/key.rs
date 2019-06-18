@@ -58,8 +58,8 @@ pub enum KeyType {
 }
 
 impl From<KeyType> for CK_KEY_TYPE {
-    fn from(hw_feature_type: KeyType) -> CK_KEY_TYPE {
-        match hw_feature_type {
+    fn from(key_type: KeyType) -> CK_KEY_TYPE {
+        match key_type {
             KeyType::Acti => CKK_ACTI as CK_KEY_TYPE,
             KeyType::Aes => CKK_AES as CK_KEY_TYPE,
             KeyType::Aria => CKK_ARIA as CK_KEY_TYPE,

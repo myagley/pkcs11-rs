@@ -149,4 +149,4 @@ mod mechanism;
 pub use certificate::CertificateType;
 pub use hardware::HwFeatureType;
 pub use key::{KeyType, PrivateKeyTemplate, PublicKeyTemplate, SecretKeyTemplate};
-pub use mechanism::MechanismType;
+pub use mechanism::{MechanismFlags, MechanismInfo, MechanismType};
