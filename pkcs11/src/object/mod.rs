@@ -107,7 +107,6 @@ impl AttributeValue {
 
 pub trait Template {
     fn attributes(&self) -> &[Attribute];
-    fn attributes_mut(&mut self) -> &mut [Attribute];
 }
 
 macro_rules! r#attr_bool {

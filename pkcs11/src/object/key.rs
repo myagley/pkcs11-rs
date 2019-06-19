@@ -280,8 +280,4 @@ impl Template for SecretKeyTemplate {
     fn attributes(&self) -> &[Attribute] {
         &self.attributes
     }
-
-    fn attributes_mut(&mut self) -> &mut [Attribute] {
-        &mut self.attributes
-    }
 }
