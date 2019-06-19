@@ -57,8 +57,8 @@ impl Attribute {
         self.key
     }
 
-    pub(crate) fn value(&mut self) -> &mut AttributeValue {
-        &mut self.value
+    pub(crate) fn value(&self) -> &AttributeValue {
+        &self.value
     }
 }
 
@@ -75,19 +75,17 @@ pub(crate) enum AttributeValue {
 }
 
 impl AttributeValue {
-    pub(crate) fn value(&mut self) -> *mut c_void {
+    pub(crate) fn value(&self) -> *const c_void {
         match self {
-            AttributeValue::ObjectClass(ref mut obj) => obj as *mut _ as *mut c_void,
-            AttributeValue::CertificateType(ref mut cert) => cert as *mut _ as *mut c_void,
-            AttributeValue::HwFeatureType(ref mut feat) => feat as *mut _ as *mut c_void,
-            AttributeValue::KeyType(ref mut key) => key as *mut _ as *mut c_void,
-            AttributeValue::Bool(ref mut b) => b as *mut _ as *mut c_void,
-            AttributeValue::Bytes(ref mut b) => b.as_mut_ptr() as *mut c_void,
-            AttributeValue::Num(ref mut n) => n as *mut _ as *mut c_void,
-            AttributeValue::String(ref mut s) => unsafe {
-                s.as_bytes_mut() as *mut _ as *mut c_void
-            },
-            AttributeValue::Date(ref mut d) => d as *mut _ as *mut c_void,
+            AttributeValue::ObjectClass(ref obj) => obj as *const _ as *const c_void,
+            AttributeValue::CertificateType(ref cert) => cert as *const _ as *const c_void,
+            AttributeValue::HwFeatureType(ref feat) => feat as *const _ as *const c_void,
+            AttributeValue::KeyType(ref key) => key as *const _ as *const c_void,
+            AttributeValue::Bool(ref b) => b as *const _ as *const c_void,
+            AttributeValue::Bytes(ref b) => b.as_ptr() as *const c_void,
+            AttributeValue::Num(ref n) => n as *const _ as *const c_void,
+            AttributeValue::String(ref s) => s.as_bytes() as *const _ as *const c_void,
+            AttributeValue::Date(ref d) => d as *const _ as *const c_void,
         }
     }
 
@@ -154,4 +152,4 @@ mod mechanism;
 pub use certificate::CertificateType;
 pub use hardware::HwFeatureType;
 pub use key::{KeyType, PrivateKeyTemplate, PublicKeyTemplate, SecretKeyTemplate};
-pub use mechanism::{MechanismFlags, MechanismInfo, MechanismType};
+pub use mechanism::{Mechanism, MechanismFlags, MechanismInfo, MechanismType};

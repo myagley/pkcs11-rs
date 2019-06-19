@@ -1,7 +1,14 @@
+use std::ffi::c_void;
 use std::fmt;
 
 use bitflags::bitflags;
 use pkcs11_sys::*;
+
+pub trait Mechanism {
+    fn r#type(&self) -> MechanismType;
+    fn as_ptr(&self) -> *const c_void;
+    fn len(&self) -> CK_ULONG;
+}
 
 bitflags! {
     /// Bit flags specifying mechanism capabilities.
@@ -57,7 +64,7 @@ impl fmt::Debug for MechanismInfo {
 /// use them.
 ///
 /// Vendor defined values for this type may also be specified.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum MechanismType {
     Acti,
     ActiKeyGen,
@@ -392,6 +399,20 @@ pub enum MechanismType {
     X9_42MqvDerive,
     X9_42DhParameterGen,
     XorBaseAndData,
+}
+
+impl Mechanism for MechanismType {
+    fn r#type(&self) -> MechanismType {
+        *self
+    }
+
+    fn as_ptr(&self) -> *const c_void {
+        std::ptr::null()
+    }
+
+    fn len(&self) -> CK_ULONG {
+        0
+    }
 }
 
 impl From<MechanismType> for CK_MECHANISM_TYPE {

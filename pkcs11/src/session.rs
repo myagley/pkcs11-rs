@@ -1,10 +1,11 @@
+use std::ffi::c_void;
 use std::mem;
 use std::ops::Drop;
 
 use bitflags::bitflags;
 use pkcs11_sys::*;
 
-use crate::object::{MechanismType, Object, Template};
+use crate::object::{Mechanism, Object, Template};
 use crate::{Error, ErrorKind, Module, SlotId};
 
 pub struct Session<'m> {
@@ -30,15 +31,14 @@ impl<'c> Session<'c> {
 
     pub fn login(&mut self, user_type: UserType, pin: &str) -> Result<(), Error> {
         unsafe {
-            let mut cpin = String::from(pin);
             let login = (*self.module.functions)
                 .C_Login
                 .ok_or(ErrorKind::MissingFunction("C_Login"))?;
             try_ck!(login(
                 self.handle,
                 user_type.into(),
-                cpin.as_mut_str() as *mut str as *mut u8,
-                cpin.len() as CK_ULONG
+                pin.as_ptr() as *mut u8,
+                pin.len() as CK_ULONG
             ));
         }
         Ok(())
@@ -54,12 +54,12 @@ impl<'c> Session<'c> {
         Ok(())
     }
 
-    pub fn create_object<T: Template>(&mut self, template: &mut T) -> Result<Object, Error> {
+    pub fn create_object<T: Template>(&mut self, template: &T) -> Result<Object, Error> {
         let mut attributes = Vec::with_capacity(template.attributes().len());
-        for attribute in template.attributes_mut() {
+        for attribute in template.attributes() {
             let attr = CK_ATTRIBUTE {
                 type_: attribute.key(),
-                pValue: attribute.value().value(),
+                pValue: attribute.value().value() as *mut c_void,
                 ulValueLen: attribute.value().len(),
             };
             attributes.push(attr);
@@ -94,16 +94,10 @@ impl<'c> Session<'c> {
         Ok(())
     }
 
-    pub fn sign(
-        &mut self,
-        key: &Object,
-        mechanism: MechanismType,
-        data: &[u8],
-    ) -> Result<Vec<u8>, Error> {
-        // Make a copy of the input. The API requires this to be *mut
-        // but we don't want the caller to have to be mutable and we
-        // still want to be safe-ish
-        let mut data = Vec::from(data);
+    pub fn sign<M>(&mut self, key: &Object, mechanism: M, data: &[u8]) -> Result<Vec<u8>, Error>
+    where
+        M: Mechanism,
+    {
         let signature = unsafe {
             let sign_init = (*self.module.functions)
                 .C_SignInit
@@ -112,11 +106,10 @@ impl<'c> Session<'c> {
                 .C_Sign
                 .ok_or(ErrorKind::MissingFunction("C_Sign"))?;
 
-            let null = std::ptr::null_mut();
             let mut mechanism = CK_MECHANISM {
-                mechanism: mechanism.into(),
-                pParameter: null,
-                ulParameterLen: 0,
+                mechanism: mechanism.r#type().into(),
+                pParameter: mechanism.as_ptr() as *mut c_void,
+                ulParameterLen: mechanism.len(),
             };
 
             // Initialize the sign operation
@@ -127,7 +120,7 @@ impl<'c> Session<'c> {
             let null_ptr = std::ptr::null_mut();
             try_ck!(sign(
                 self.handle,
-                data.as_mut_ptr(),
+                data.as_ptr() as *mut u8,
                 data.len() as CK_ULONG,
                 null_ptr,
                 &mut size
@@ -137,7 +130,7 @@ impl<'c> Session<'c> {
             let mut signature = Vec::with_capacity(size as usize);
             try_ck!(sign(
                 self.handle,
-                data.as_mut_ptr(),
+                data.as_ptr() as *mut u8,
                 data.len() as CK_ULONG,
                 signature.as_mut_ptr(),
                 &mut size
@@ -148,18 +141,16 @@ impl<'c> Session<'c> {
         Ok(signature)
     }
 
-    pub fn verify(
+    pub fn verify<M>(
         &mut self,
         key: &Object,
-        mechanism: MechanismType,
+        mechanism: M,
         data: &[u8],
         signature: &[u8],
-    ) -> Result<bool, Error> {
-        // Make a copy of the input. The API requires this to be *mut
-        // but we don't want the caller to have to be mutable and we
-        // still want to be safe-ish
-        let mut data = Vec::from(data);
-        let mut signature = Vec::from(signature);
+    ) -> Result<bool, Error>
+    where
+        M: Mechanism,
+    {
         let verified = unsafe {
             let verify_init = (*self.module.functions)
                 .C_VerifyInit
@@ -168,11 +159,10 @@ impl<'c> Session<'c> {
                 .C_Verify
                 .ok_or(ErrorKind::MissingFunction("C_Verify"))?;
 
-            let null = std::ptr::null_mut();
             let mut mechanism = CK_MECHANISM {
-                mechanism: mechanism.into(),
-                pParameter: null,
-                ulParameterLen: 0,
+                mechanism: mechanism.r#type().into(),
+                pParameter: mechanism.as_ptr() as *mut c_void,
+                ulParameterLen: mechanism.len(),
             };
 
             // Initialize the sign operation
@@ -181,9 +171,9 @@ impl<'c> Session<'c> {
             // Verify
             let rv = verify(
                 self.handle,
-                data.as_mut_ptr(),
+                data.as_ptr() as *mut u8,
                 data.len() as CK_ULONG,
-                signature.as_mut_ptr(),
+                signature.as_ptr() as *mut u8,
                 signature.len() as CK_ULONG,
             );
 
@@ -333,6 +323,6 @@ mod tests {
             .value(base64::decode("vSnr9DjnpfTCTjtG1LpFv4Ie476NBtOAyjUPzg4Y+H8=").unwrap())
             // .is_token_object(true)
             .label("my secret key".to_string());
-        let object = session.create_object(&mut template).unwrap();
+        let _object = session.create_object(&mut template).unwrap();
     }
 }

@@ -13,17 +13,18 @@ fn run() -> Result<(), Error> {
     let module = ModuleBuilder::new()
         .path("/usr/local/lib/softhsm/libsofthsm2.so")
         .initialize()?;
-    let mut session = module.session(595651617, SessionFlags::empty())?;
+    let mut session = module.session(595651617, SessionFlags::RW)?;
     session.login(UserType::User, "1234")?;
 
     let mut template = SecretKeyTemplate::new();
     template
         .key_type(KeyType::Sha256Hmac)
         .label("sas-key".to_string())
+        // .is_token_object(true)
         .value(
             base64::decode("vSnr9DjnpfTCTjtG1LpFv4Ie476NBtOAyjUPzg4Y+H8=").expect("Invalid base64"),
         );
-    let key = session.create_object(&mut template)?;
+    let key = session.create_object(&template)?;
     let signature = session.sign(&key, MechanismType::Sha256Hmac, "hello".as_bytes())?;
     let verified = session.verify(
         &key,
