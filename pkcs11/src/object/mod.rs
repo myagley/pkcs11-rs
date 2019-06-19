@@ -67,13 +67,13 @@ impl Attribute {
 pub(crate) enum AttributeValue {
     ObjectClass(CK_OBJECT_CLASS),
     CertificateType(CK_CERTIFICATE_TYPE),
-    HwFeatureType(CK_HW_FEATURE_TYPE),
+    // HwFeatureType(CK_HW_FEATURE_TYPE),
     KeyType(CK_KEY_TYPE),
     Bool(CK_BBOOL),
     Bytes(Vec<u8>),
     Num(BigUint),
     String(String),
-    Date(CK_DATE),
+    // Date(CK_DATE),
 }
 
 impl AttributeValue {
@@ -81,13 +81,13 @@ impl AttributeValue {
         match self {
             AttributeValue::ObjectClass(ref obj) => obj as *const _ as *const c_void,
             AttributeValue::CertificateType(ref cert) => cert as *const _ as *const c_void,
-            AttributeValue::HwFeatureType(ref feat) => feat as *const _ as *const c_void,
+            // AttributeValue::HwFeatureType(ref feat) => feat as *const _ as *const c_void,
             AttributeValue::KeyType(ref key) => key as *const _ as *const c_void,
             AttributeValue::Bool(ref b) => b as *const _ as *const c_void,
             AttributeValue::Bytes(ref b) => b.as_ptr() as *const c_void,
             AttributeValue::Num(ref n) => n.to_bytes_be().as_ptr() as *const c_void,
             AttributeValue::String(ref s) => s.as_bytes() as *const _ as *const c_void,
-            AttributeValue::Date(ref d) => d as *const _ as *const c_void,
+            // AttributeValue::Date(ref d) => d as *const _ as *const c_void,
         }
     }
 
@@ -95,13 +95,13 @@ impl AttributeValue {
         match self {
             AttributeValue::ObjectClass(_) => mem::size_of::<CK_OBJECT_CLASS>() as CK_ULONG,
             AttributeValue::CertificateType(_) => mem::size_of::<CK_CERTIFICATE_TYPE>() as CK_ULONG,
-            AttributeValue::HwFeatureType(_) => mem::size_of::<CK_HW_FEATURE_TYPE>() as CK_ULONG,
+            // AttributeValue::HwFeatureType(_) => mem::size_of::<CK_HW_FEATURE_TYPE>() as CK_ULONG,
             AttributeValue::KeyType(_) => mem::size_of::<CK_KEY_TYPE>() as CK_ULONG,
             AttributeValue::Bool(_) => mem::size_of::<CK_BBOOL>() as CK_ULONG,
             AttributeValue::Bytes(b) => b.len() as CK_ULONG,
             AttributeValue::Num(n) => n.to_bytes_be().len() as CK_ULONG,
             AttributeValue::String(s) => s.as_bytes().len() as CK_ULONG,
-            AttributeValue::Date(_) => mem::size_of::<CK_DATE>() as CK_ULONG,
+            // AttributeValue::Date(_) => mem::size_of::<CK_DATE>() as CK_ULONG,
         }
     }
 }
@@ -160,7 +160,7 @@ mod hardware;
 mod key;
 mod mechanism;
 
-pub use certificate::CertificateType;
+pub use certificate::{CertificateType, X509CertificateTemplate};
 pub use hardware::HwFeatureType;
 pub use key::{
     KeyType, PrivateKeyTemplate, PublicKeyTemplate, RsaPrivateKeyTemplate, SecretKeyTemplate,
