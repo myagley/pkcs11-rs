@@ -4,6 +4,7 @@ use std::ops::Drop;
 
 use bitflags::bitflags;
 use pkcs11_sys::*;
+use scopeguard::defer;
 
 use crate::object::{Mechanism, Object, Template};
 use crate::{Error, ErrorKind, Module, SlotId};
@@ -92,6 +93,67 @@ impl<'c> Session<'c> {
             try_ck!(destroy_object(self.handle, object.handle));
         }
         Ok(())
+    }
+
+    pub fn find_objects<T: Template>(&mut self, template: &T) -> Result<Vec<Object>, Error> {
+        let mut attributes = Vec::with_capacity(template.attributes().len());
+        for attribute in template.attributes() {
+            let attr = CK_ATTRIBUTE {
+                type_: attribute.key(),
+                pValue: attribute.value().value() as *mut c_void,
+                ulValueLen: attribute.value().len(),
+            };
+            attributes.push(attr);
+        }
+
+        let objects = unsafe {
+            let find_objects_init = (*self.module.functions)
+                .C_FindObjectsInit
+                .ok_or(ErrorKind::MissingFunction("C_FindObjectsInit"))?;
+            let find_objects = (*self.module.functions)
+                .C_FindObjects
+                .ok_or(ErrorKind::MissingFunction("C_FindObjects"))?;
+            let find_objects_final = (*self.module.functions)
+                .C_FindObjectsFinal
+                .ok_or(ErrorKind::MissingFunction("C_FindObjectsFinal"))?;
+
+            try_ck!(find_objects_init(
+                self.handle,
+                attributes.as_mut_ptr(),
+                attributes.len() as CK_ULONG
+            ));
+
+            // scopeguard the call to find_objects_final so that it always
+            // runs now that the find operation has been initialized
+            defer! {{
+                find_objects_final(self.handle);
+            }}
+
+            let mut object_count: CK_ULONG = mem::uninitialized();
+            let cap = 8;
+            let mut objects = Vec::with_capacity(cap);
+
+            // this is a do-while loop in rust
+            // the last expression is the end condition
+            while {
+                let mut chunk = Vec::with_capacity(cap);
+
+                try_ck!(find_objects(
+                    self.handle,
+                    chunk.as_mut_ptr(),
+                    cap as CK_ULONG,
+                    &mut object_count as *mut CK_ULONG
+                ));
+                chunk.set_len(object_count as usize + chunk.len());
+                chunk.reserve(object_count as usize);
+                objects.append(&mut chunk);
+
+                // exit loop when no more objects
+                object_count != 0
+            } {}
+            objects.iter().map(|obj| Object { handle: *obj }).collect()
+        };
+        Ok(objects)
     }
 
     pub fn sign<M>(&mut self, key: &Object, mechanism: M, data: &[u8]) -> Result<Vec<u8>, Error>

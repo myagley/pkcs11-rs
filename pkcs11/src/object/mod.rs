@@ -4,6 +4,7 @@ use std::mem;
 use pkcs11_sys::*;
 
 /// A token-specific identifier for an object.
+#[derive(Debug)]
 pub struct Object {
     pub(crate) handle: CK_OBJECT_HANDLE,
 }
