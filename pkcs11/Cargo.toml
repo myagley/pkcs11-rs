@@ -8,7 +8,8 @@ edition = "2018"
 bitflags = "1.1"
 failure = "0.1"
 lazy_static = "1"
-libloading = "0.5.1"
+libloading = "0.5"
+num-bigint = "0.2"
 scopeguard = "1.0"
 
 pkcs11-sys = { path = "../pkcs11-sys" }

@@ -1,4 +1,5 @@
 use std::ffi::c_void;
+use std::fmt;
 use std::mem;
 use std::ops::Drop;
 
@@ -247,6 +248,15 @@ impl<'c> Session<'c> {
             }
         };
         Ok(verified)
+    }
+}
+
+impl<'c> fmt::Debug for Session<'c> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut d = f.debug_struct("Session");
+        d.field("slot_id", &self.slot_id.0);
+        d.field("handle", &self.handle);
+        d.finish()
     }
 }
 

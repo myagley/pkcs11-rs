@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 use std::mem;
 
+pub use num_bigint::BigUint;
 use pkcs11_sys::*;
 
 /// A token-specific identifier for an object.
@@ -70,7 +71,7 @@ pub(crate) enum AttributeValue {
     KeyType(CK_KEY_TYPE),
     Bool(CK_BBOOL),
     Bytes(Vec<u8>),
-    Num(CK_ULONG),
+    Num(BigUint),
     String(String),
     Date(CK_DATE),
 }
@@ -84,7 +85,7 @@ impl AttributeValue {
             AttributeValue::KeyType(ref key) => key as *const _ as *const c_void,
             AttributeValue::Bool(ref b) => b as *const _ as *const c_void,
             AttributeValue::Bytes(ref b) => b.as_ptr() as *const c_void,
-            AttributeValue::Num(ref n) => n as *const _ as *const c_void,
+            AttributeValue::Num(ref n) => n.to_bytes_be().as_ptr() as *const c_void,
             AttributeValue::String(ref s) => s.as_bytes() as *const _ as *const c_void,
             AttributeValue::Date(ref d) => d as *const _ as *const c_void,
         }
@@ -98,7 +99,7 @@ impl AttributeValue {
             AttributeValue::KeyType(_) => mem::size_of::<CK_KEY_TYPE>() as CK_ULONG,
             AttributeValue::Bool(_) => mem::size_of::<CK_BBOOL>() as CK_ULONG,
             AttributeValue::Bytes(b) => b.len() as CK_ULONG,
-            AttributeValue::Num(_) => mem::size_of::<CK_ULONG>() as CK_ULONG,
+            AttributeValue::Num(n) => n.to_bytes_be().len() as CK_ULONG,
             AttributeValue::String(s) => s.as_bytes().len() as CK_ULONG,
             AttributeValue::Date(_) => mem::size_of::<CK_DATE>() as CK_ULONG,
         }
@@ -144,6 +145,16 @@ macro_rules! r#attr_string {
     }
 }
 
+macro_rules! r#attr_bigint {
+    ($op:ident,$attr:ident) => {
+        pub fn $op<'a>(&'a mut self, $op: $crate::object::BigUint) -> &'a mut Self {
+            let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::Num($op));
+            self.attributes.push(attribute);
+            self
+        }
+    }
+}
+
 mod certificate;
 mod hardware;
 mod key;
@@ -151,5 +162,26 @@ mod mechanism;
 
 pub use certificate::CertificateType;
 pub use hardware::HwFeatureType;
-pub use key::{KeyType, PrivateKeyTemplate, PublicKeyTemplate, SecretKeyTemplate};
+pub use key::{
+    KeyType, PrivateKeyTemplate, PublicKeyTemplate, RsaPrivateKeyTemplate, SecretKeyTemplate,
+};
 pub use mechanism::{Mechanism, MechanismFlags, MechanismInfo, MechanismType};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_biguint() {
+        let expected = vec![0x80u8, 0x00u8];
+        let num = BigUint::from(32768u64);
+        assert_eq!(expected, num.to_bytes_be());
+    }
+
+    #[test]
+    fn test_biguint_from_be() {
+        let bytes = vec![0x80u8, 0x00u8];
+        let expected = BigUint::from(32768u64);
+        assert_eq!(expected, BigUint::from_bytes_be(&bytes));
+    }
+}

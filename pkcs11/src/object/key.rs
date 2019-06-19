@@ -160,6 +160,12 @@ impl PublicKeyTemplate {
     attr_bytes!(public_key_info, CKA_PUBLIC_KEY_INFO);
 }
 
+impl Template for PublicKeyTemplate {
+    fn attributes(&self) -> &[Attribute] {
+        &self.attributes
+    }
+}
+
 pub struct PrivateKeyTemplate {
     attributes: Vec<Attribute>,
 }
@@ -215,6 +221,80 @@ impl PrivateKeyTemplate {
     //attr_attr_array!(unwrap_template, CKA_UNWRAP_TEMPLATE);
     attr_bool!(alway_authenticate, CKA_ALWAYS_AUTHENTICATE);
     attr_bytes!(public_key_info, CKA_PUBLIC_KEY_INFO);
+}
+
+impl Template for PrivateKeyTemplate {
+    fn attributes(&self) -> &[Attribute] {
+        &self.attributes
+    }
+}
+
+pub struct RsaPrivateKeyTemplate {
+    attributes: Vec<Attribute>,
+}
+
+impl RsaPrivateKeyTemplate {
+    pub fn new() -> Self {
+        let object_class = Attribute::new(
+            CKA_CLASS.into(),
+            AttributeValue::ObjectClass(ObjectClass::PrivateKey.into()),
+        );
+        let key_type = Attribute::new(
+            CKA_KEY_TYPE.into(),
+            AttributeValue::KeyType(KeyType::Rsa.into()),
+        );
+        let attributes = vec![object_class, key_type];
+        Self { attributes }
+    }
+
+    // Common attributes
+    attr_bool!(is_token_object, CKA_TOKEN);
+    attr_bool!(is_private, CKA_PRIVATE);
+    attr_bool!(is_modifiable, CKA_MODIFIABLE);
+    attr_string!(label, CKA_LABEL);
+    attr_bool!(is_copyable, CKA_COPYABLE);
+    attr_bool!(is_destroyable, CKA_DESTROYABLE);
+
+    // Common key attributes
+    attr_bytes!(id, CKA_ID);
+    // attr_date!(start_date, CKA_START_DATE);
+    // attr_date!(end_date, CKA_END_DATE);
+    attr_bool!(can_derive, CKA_DERIVE);
+    attr_bool!(is_local, CKA_LOCAL);
+    //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
+    //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
+    attr_bytes!(value, CKA_VALUE);
+
+    // Private key attributes
+    attr_bytes!(subject, CKA_SUBJECT);
+    attr_bool!(is_sensitive, CKA_SENSITIVE);
+    attr_bool!(can_decrypt, CKA_DECRYPT);
+    attr_bool!(can_sign, CKA_SIGN);
+    attr_bool!(can_sign_recover, CKA_SIGN_RECOVER);
+    attr_bool!(can_unwrap, CKA_UNWRAP);
+    attr_bool!(is_extractable, CKA_EXTRACTABLE);
+    attr_bool!(always_sensitive, CKA_ALWAYS_SENSITIVE);
+    attr_bool!(never_extractable, CKA_NEVER_EXTRACTABLE);
+    attr_bool!(only_wrap_with_trusted, CKA_WRAP_WITH_TRUSTED);
+    //attr_attr_array!(unwrap_template, CKA_UNWRAP_TEMPLATE);
+    attr_bool!(alway_authenticate, CKA_ALWAYS_AUTHENTICATE);
+    attr_bytes!(public_key_info, CKA_PUBLIC_KEY_INFO);
+
+    // RSA private key attributes
+    attr_bigint!(modulus, CKA_MODULUS);
+    attr_bigint!(public_exponent, CKA_PUBLIC_EXPONENT);
+    attr_bigint!(private_exponent, CKA_PRIVATE_EXPONENT);
+    attr_bigint!(prime1, CKA_PRIME_1);
+    attr_bigint!(prime2, CKA_PRIME_2);
+    attr_bigint!(exponent1, CKA_EXPONENT_1);
+    attr_bigint!(exponent2, CKA_EXPONENT_2);
+    attr_bigint!(coefficient, CKA_COEFFICIENT);
+}
+
+impl Template for RsaPrivateKeyTemplate {
+    fn attributes(&self) -> &[Attribute] {
+        &self.attributes
+    }
 }
 
 pub struct SecretKeyTemplate {
