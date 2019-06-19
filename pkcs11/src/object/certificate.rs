@@ -70,7 +70,7 @@ impl X509CertificateTemplate {
     attr_string!(url, CKA_URL);
     attr_bytes!(hash_of_subject_public_key, CKA_HASH_OF_SUBJECT_PUBLIC_KEY);
     attr_bytes!(hash_of_issuer_public_key, CKA_HASH_OF_ISSUER_PUBLIC_KEY);
-    //attr_mech!(name_hash_algorithm, CKA_NAME_HASH_ALGORITHM);
+    attr_mech!(name_hash_algorithm, CKA_NAME_HASH_ALGORITHM);
 }
 
 impl Template for X509CertificateTemplate {

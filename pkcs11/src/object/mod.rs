@@ -74,6 +74,7 @@ pub(crate) enum AttributeValue {
     Num(BigUint),
     String(String),
     // Date(CK_DATE),
+    MechanismType(CK_MECHANISM_TYPE),
 }
 
 impl AttributeValue {
@@ -88,6 +89,7 @@ impl AttributeValue {
             AttributeValue::Num(ref n) => n.to_bytes_be().as_ptr() as *const c_void,
             AttributeValue::String(ref s) => s.as_bytes() as *const _ as *const c_void,
             // AttributeValue::Date(ref d) => d as *const _ as *const c_void,
+            AttributeValue::MechanismType(ref t) => t as *const _ as *const c_void,
         }
     }
 
@@ -102,6 +104,7 @@ impl AttributeValue {
             AttributeValue::Num(n) => n.to_bytes_be().len() as CK_ULONG,
             AttributeValue::String(s) => s.as_bytes().len() as CK_ULONG,
             // AttributeValue::Date(_) => mem::size_of::<CK_DATE>() as CK_ULONG,
+            AttributeValue::MechanismType(_) => mem::size_of::<CK_MECHANISM_TYPE>() as CK_ULONG,
         }
     }
 }
@@ -125,6 +128,16 @@ macro_rules! r#attr_bool {
     }
 }
 
+macro_rules! r#attr_bigint {
+    ($op:ident,$attr:ident) => {
+        pub fn $op<'a>(&'a mut self, $op: $crate::object::BigUint) -> &'a mut Self {
+            let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::Num($op));
+            self.attributes.push(attribute);
+            self
+        }
+    }
+}
+
 macro_rules! r#attr_bytes {
     ($op:ident,$attr:ident) => {
         pub fn $op<'a>(&'a mut self, $op: Vec<u8>) -> &'a mut Self {
@@ -135,20 +148,20 @@ macro_rules! r#attr_bytes {
     }
 }
 
-macro_rules! r#attr_string {
+macro_rules! r#attr_mech {
     ($op:ident,$attr:ident) => {
-        pub fn $op<'a>(&'a mut self, $op: String) -> &'a mut Self {
-            let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::String($op));
+        pub fn $op<'a>(&'a mut self, $op: $crate::object::MechanismType) -> &'a mut Self {
+            let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::MechanismType($op.into()));
             self.attributes.push(attribute);
             self
         }
     }
 }
 
-macro_rules! r#attr_bigint {
+macro_rules! r#attr_string {
     ($op:ident,$attr:ident) => {
-        pub fn $op<'a>(&'a mut self, $op: $crate::object::BigUint) -> &'a mut Self {
-            let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::Num($op));
+        pub fn $op<'a>(&'a mut self, $op: String) -> &'a mut Self {
+            let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::String($op));
             self.attributes.push(attribute);
             self
         }

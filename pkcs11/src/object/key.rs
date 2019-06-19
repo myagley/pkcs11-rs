@@ -145,7 +145,7 @@ impl PublicKeyTemplate {
     // attr_date!(end_date, CKA_END_DATE);
     attr_bool!(can_derive, CKA_DERIVE);
     attr_bool!(is_local, CKA_LOCAL);
-    //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
+    attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
     //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
     attr_bytes!(value, CKA_VALUE);
 
@@ -203,7 +203,7 @@ impl PrivateKeyTemplate {
     // attr_date!(end_date, CKA_END_DATE);
     attr_bool!(can_derive, CKA_DERIVE);
     attr_bool!(is_local, CKA_LOCAL);
-    //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
+    attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
     //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
     attr_bytes!(value, CKA_VALUE);
 
@@ -261,7 +261,7 @@ impl RsaPrivateKeyTemplate {
     // attr_date!(end_date, CKA_END_DATE);
     attr_bool!(can_derive, CKA_DERIVE);
     attr_bool!(is_local, CKA_LOCAL);
-    //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
+    attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
     //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
     attr_bytes!(value, CKA_VALUE);
 
@@ -334,7 +334,7 @@ impl SecretKeyTemplate {
     // attr_date!(end_date, CKA_END_DATE);
     attr_bool!(can_derive, CKA_DERIVE);
     attr_bool!(is_local, CKA_LOCAL);
-    //attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
+    attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
     //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
     attr_bytes!(value, CKA_VALUE);
 
