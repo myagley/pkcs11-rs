@@ -262,26 +262,22 @@ impl Module {
 
     /// Opens a connection between an application and a particular token or
     /// sets up an application callback for token insertion
-    pub fn session<'c, S: Into<SlotId>>(
-        &'c self,
+    pub fn session<S: Into<SlotId>>(
+        &self,
         slot_id: S,
         mut flags: SessionFlags,
-    ) -> Result<Session<'c>, Error> {
+    ) -> Result<Session, Error> {
         let slot_id = slot_id.into();
         // (5.6) For legacy reasons, the CKF_SERIAL_SESSION bit MUST always be set
         flags.insert(SessionFlags::SERIAL);
 
         let session = unsafe {
-            let mut session = Session {
-                slot_id,
-                module: self,
-                handle: mem::uninitialized(),
-            };
             let p_application = std::ptr::null_mut();
             let open_session = (*self.functions)
                 .C_OpenSession
                 .ok_or(ErrorKind::MissingFunction("C_OpenSession"))?;
 
+            let mut handle = mem::uninitialized();
             try_ck!(
                 "C_OpenSession",
                 open_session(
@@ -289,10 +285,10 @@ impl Module {
                     flags.bits(),
                     p_application,
                     Option::None,
-                    &mut session.handle
+                    &mut handle,
                 )
             );
-            session
+            Session::new(slot_id, handle, self.functions)
         };
         Ok(session)
     }

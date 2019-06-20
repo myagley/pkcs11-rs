@@ -2,27 +2,46 @@ use std::ffi::c_void;
 use std::fmt;
 use std::mem;
 use std::ops::Drop;
+use std::sync::Mutex;
 
 use bitflags::bitflags;
 use pkcs11_sys::*;
 use scopeguard::defer;
 
 use crate::object::{Mechanism, Object, Template};
-use crate::{Error, ErrorKind, Module, Pkcs11Error, SlotId};
+use crate::{Error, ErrorKind, Pkcs11Error, SlotId};
 
-pub struct Session<'m> {
-    pub(crate) slot_id: SlotId,
-    pub(crate) module: &'m Module,
-    pub(crate) handle: CK_SESSION_HANDLE,
+pub struct Session {
+    slot_id: SlotId,
+    functions: CK_FUNCTION_LIST_PTR,
+    handle: CK_SESSION_HANDLE,
+    signer: Mutex<Signer>,
+    verifier: Mutex<Verifier>,
+    finder: Mutex<Finder>,
 }
 
-impl<'c> Session<'c> {
+impl Session {
+    pub(crate) fn new(
+        slot_id: SlotId,
+        handle: CK_SESSION_HANDLE,
+        functions: CK_FUNCTION_LIST_PTR,
+    ) -> Self {
+        Self {
+            slot_id,
+            handle,
+            functions,
+            signer: Mutex::new(Signer),
+            verifier: Mutex::new(Verifier),
+            finder: Mutex::new(Finder),
+        }
+    }
+
     pub fn info(&self) -> Result<SessionInfo, Error> {
         let info = unsafe {
             let mut info = SessionInfo {
                 inner: mem::uninitialized(),
             };
-            let get_session = (*self.module.functions)
+            let get_session = (*self.functions)
                 .C_GetSessionInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetSessionInfo"))?;
             try_ck!(
@@ -34,9 +53,9 @@ impl<'c> Session<'c> {
         Ok(info)
     }
 
-    pub fn login(&mut self, user_type: UserType, pin: &str) -> Result<(), Error> {
+    pub fn login(self, user_type: UserType, pin: &str) -> Result<(), Error> {
         unsafe {
-            let login = (*self.module.functions)
+            let login = (*self.functions)
                 .C_Login
                 .ok_or(ErrorKind::MissingFunction("C_Login"))?;
             try_ck!(
@@ -52,9 +71,9 @@ impl<'c> Session<'c> {
         Ok(())
     }
 
-    pub fn logout(&mut self) -> Result<(), Error> {
+    pub fn logout(&self) -> Result<(), Error> {
         unsafe {
-            let logout = (*self.module.functions)
+            let logout = (*self.functions)
                 .C_Logout
                 .ok_or(ErrorKind::MissingFunction("C_Logout"))?;
             try_ck!("C_Logout", logout(self.handle));
@@ -62,7 +81,7 @@ impl<'c> Session<'c> {
         Ok(())
     }
 
-    pub fn create_object<T: Template>(&mut self, template: &T) -> Result<Object, Error> {
+    pub fn create_object<T: Template>(&self, template: &T) -> Result<Object, Error> {
         let mut attributes = Vec::with_capacity(template.attributes().len());
         for attribute in template.attributes() {
             let attr = CK_ATTRIBUTE {
@@ -74,7 +93,7 @@ impl<'c> Session<'c> {
         }
 
         let object = unsafe {
-            let create_object = (*self.module.functions)
+            let create_object = (*self.functions)
                 .C_CreateObject
                 .ok_or(ErrorKind::MissingFunction("C_CreateObject"))?;
             let mut object = Object {
@@ -95,9 +114,9 @@ impl<'c> Session<'c> {
         Ok(object)
     }
 
-    pub fn destroy_object(&mut self, object: Object) -> Result<(), Error> {
+    pub fn destroy_object(&self, object: Object) -> Result<(), Error> {
         unsafe {
-            let destroy_object = (*self.module.functions)
+            let destroy_object = (*self.functions)
                 .C_DestroyObject
                 .ok_or(ErrorKind::MissingFunction("C_DestroyObject"))?;
             try_ck!(
@@ -108,136 +127,21 @@ impl<'c> Session<'c> {
         Ok(())
     }
 
-    pub fn find_objects<T: Template>(&mut self, template: &T) -> Result<Vec<Object>, Error> {
-        let mut attributes = Vec::with_capacity(template.attributes().len());
-        for attribute in template.attributes() {
-            let attr = CK_ATTRIBUTE {
-                type_: attribute.key(),
-                pValue: attribute.value().value() as *mut c_void,
-                ulValueLen: attribute.value().len(),
-            };
-            attributes.push(attr);
-        }
-
-        let objects = unsafe {
-            let find_objects_init = (*self.module.functions)
-                .C_FindObjectsInit
-                .ok_or(ErrorKind::MissingFunction("C_FindObjectsInit"))?;
-            let find_objects = (*self.module.functions)
-                .C_FindObjects
-                .ok_or(ErrorKind::MissingFunction("C_FindObjects"))?;
-            let find_objects_final = (*self.module.functions)
-                .C_FindObjectsFinal
-                .ok_or(ErrorKind::MissingFunction("C_FindObjectsFinal"))?;
-
-            try_ck!(
-                "C_FindObjectsInit",
-                find_objects_init(
-                    self.handle,
-                    attributes.as_mut_ptr(),
-                    attributes.len() as CK_ULONG
-                )
-            );
-
-            // scopeguard the call to find_objects_final so that it always
-            // runs now that the find operation has been initialized
-            defer! {{
-                let rv = find_objects_final(self.handle);
-                if rv == CKR_OK.into() {
-                    log::trace!("C_FindObjectFinal succeeded");
-                } else {
-                    log::trace!("C_FindObjectFinal failed with {}", Pkcs11Error::from(rv.into()));
-                }
-            }}
-
-            let mut object_count: CK_ULONG = mem::uninitialized();
-            let cap = 8;
-            let mut objects = Vec::with_capacity(cap);
-
-            // this is a do-while loop in rust
-            // the last expression is the end condition
-            while {
-                let mut chunk = Vec::with_capacity(cap);
-
-                try_ck!(
-                    "C_FindObjects",
-                    find_objects(
-                        self.handle,
-                        chunk.as_mut_ptr(),
-                        cap as CK_ULONG,
-                        &mut object_count as *mut CK_ULONG
-                    )
-                );
-                chunk.set_len(object_count as usize + chunk.len());
-                chunk.reserve(object_count as usize);
-                objects.append(&mut chunk);
-
-                // exit loop when no more objects
-                object_count != 0
-            } {}
-            objects.iter().map(|obj| Object { handle: *obj }).collect()
-        };
-        Ok(objects)
+    pub fn find_objects<T: Template>(&self, template: &T) -> Result<Vec<Object>, Error> {
+        let finder = self.finder.lock().expect("finder lock poisoned");
+        finder.find_objects(&self, template)
     }
 
-    pub fn sign<M>(&mut self, key: &Object, mechanism: M, data: &[u8]) -> Result<Vec<u8>, Error>
+    pub fn sign<M>(&self, key: &Object, mechanism: M, data: &[u8]) -> Result<Vec<u8>, Error>
     where
         M: Mechanism,
     {
-        let signature = unsafe {
-            let sign_init = (*self.module.functions)
-                .C_SignInit
-                .ok_or(ErrorKind::MissingFunction("C_SignInit"))?;
-            let sign = (*self.module.functions)
-                .C_Sign
-                .ok_or(ErrorKind::MissingFunction("C_Sign"))?;
-
-            let mut mechanism = CK_MECHANISM {
-                mechanism: mechanism.r#type().into(),
-                pParameter: mechanism.as_ptr() as *mut c_void,
-                ulParameterLen: mechanism.len(),
-            };
-
-            // Initialize the sign operation
-            try_ck!(
-                "C_SignInit",
-                sign_init(self.handle, &mut mechanism, key.handle)
-            );
-
-            // Get the size
-            let mut size: CK_ULONG = mem::uninitialized();
-            let null_ptr = std::ptr::null_mut();
-            try_ck!(
-                "C_Sign",
-                sign(
-                    self.handle,
-                    data.as_ptr() as *mut u8,
-                    data.len() as CK_ULONG,
-                    null_ptr,
-                    &mut size
-                )
-            );
-
-            // Get the signature
-            let mut signature = Vec::with_capacity(size as usize);
-            try_ck!(
-                "C_Sign",
-                sign(
-                    self.handle,
-                    data.as_ptr() as *mut u8,
-                    data.len() as CK_ULONG,
-                    signature.as_mut_ptr(),
-                    &mut size
-                )
-            );
-            signature.set_len(size as usize);
-            signature
-        };
-        Ok(signature)
+        let signer = self.signer.lock().expect("signer lock poisoned");
+        signer.sign(&self, key, mechanism, data)
     }
 
     pub fn verify<M>(
-        &mut self,
+        &self,
         key: &Object,
         mechanism: M,
         data: &[u8],
@@ -246,47 +150,16 @@ impl<'c> Session<'c> {
     where
         M: Mechanism,
     {
-        let verified = unsafe {
-            let verify_init = (*self.module.functions)
-                .C_VerifyInit
-                .ok_or(ErrorKind::MissingFunction("C_VerifyInit"))?;
-            let verify = (*self.module.functions)
-                .C_Verify
-                .ok_or(ErrorKind::MissingFunction("C_Verify"))?;
-
-            let mut mechanism = CK_MECHANISM {
-                mechanism: mechanism.r#type().into(),
-                pParameter: mechanism.as_ptr() as *mut c_void,
-                ulParameterLen: mechanism.len(),
-            };
-
-            // Initialize the sign operation
-            try_ck!(
-                "C_VerifyInit",
-                verify_init(self.handle, &mut mechanism, key.handle)
-            );
-
-            // Verify
-            let rv = verify(
-                self.handle,
-                data.as_ptr() as *mut u8,
-                data.len() as CK_ULONG,
-                signature.as_ptr() as *mut u8,
-                signature.len() as CK_ULONG,
-            );
-
-            if rv == CKR_SIGNATURE_INVALID.into() {
-                false
-            } else {
-                try_ck!("C_Verify", rv);
-                true
-            }
-        };
-        Ok(verified)
+        let verifier = self.verifier.lock().expect("verifier lock poisoned");
+        verifier.verify(&self, key, mechanism, data, signature)
     }
 }
 
-impl<'c> fmt::Debug for Session<'c> {
+// This is safe because the module is initialized with CKF_OS_LOCKING_OK
+unsafe impl Send for Session {}
+unsafe impl Sync for Session {}
+
+impl fmt::Debug for Session {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut d = f.debug_struct("Session");
         d.field("slot_id", &self.slot_id.0);
@@ -295,10 +168,10 @@ impl<'c> fmt::Debug for Session<'c> {
     }
 }
 
-impl<'c> Drop for Session<'c> {
+impl Drop for Session {
     fn drop(&mut self) {
         unsafe {
-            if let Some(close) = (*self.module.functions).C_CloseSession {
+            if let Some(close) = (*self.functions).C_CloseSession {
                 close(self.handle);
             }
         }
@@ -382,6 +255,206 @@ impl From<UserType> for CK_USER_TYPE {
             UserType::User => CKU_USER as CK_USER_TYPE,
             UserType::ContextSpecific => CKU_CONTEXT_SPECIFIC as CK_USER_TYPE,
         }
+    }
+}
+
+struct Finder;
+
+impl Finder {
+    pub fn find_objects<T: Template>(
+        &self,
+        session: &Session,
+        template: &T,
+    ) -> Result<Vec<Object>, Error> {
+        let mut attributes = Vec::with_capacity(template.attributes().len());
+        for attribute in template.attributes() {
+            let attr = CK_ATTRIBUTE {
+                type_: attribute.key(),
+                pValue: attribute.value().value() as *mut c_void,
+                ulValueLen: attribute.value().len(),
+            };
+            attributes.push(attr);
+        }
+
+        let objects = unsafe {
+            let find_objects_init = (*session.functions)
+                .C_FindObjectsInit
+                .ok_or(ErrorKind::MissingFunction("C_FindObjectsInit"))?;
+            let find_objects = (*session.functions)
+                .C_FindObjects
+                .ok_or(ErrorKind::MissingFunction("C_FindObjects"))?;
+            let find_objects_final = (*session.functions)
+                .C_FindObjectsFinal
+                .ok_or(ErrorKind::MissingFunction("C_FindObjectsFinal"))?;
+
+            try_ck!(
+                "C_FindObjectsInit",
+                find_objects_init(
+                    session.handle,
+                    attributes.as_mut_ptr(),
+                    attributes.len() as CK_ULONG
+                )
+            );
+
+            // scopeguard the call to find_objects_final so that it always
+            // runs now that the find operation has been initialized
+            defer! {{
+                let rv = find_objects_final(session.handle);
+                if rv == CKR_OK.into() {
+                    log::trace!("C_FindObjectFinal succeeded");
+                } else {
+                    log::trace!("C_FindObjectFinal failed with {}", Pkcs11Error::from(rv.into()));
+                }
+            }}
+
+            let mut object_count: CK_ULONG = mem::uninitialized();
+            let cap = 8;
+            let mut objects = Vec::with_capacity(cap);
+
+            // this is a do-while loop in rust
+            // the last expression is the end condition
+            while {
+                let mut chunk = Vec::with_capacity(cap);
+
+                try_ck!(
+                    "C_FindObjects",
+                    find_objects(
+                        session.handle,
+                        chunk.as_mut_ptr(),
+                        cap as CK_ULONG,
+                        &mut object_count as *mut CK_ULONG
+                    )
+                );
+                chunk.set_len(object_count as usize + chunk.len());
+                chunk.reserve(object_count as usize);
+                objects.append(&mut chunk);
+
+                // exit loop when no more objects
+                object_count != 0
+            } {}
+            objects.iter().map(|obj| Object { handle: *obj }).collect()
+        };
+        Ok(objects)
+    }
+}
+
+struct Signer;
+
+impl Signer {
+    pub fn sign<M>(
+        &self,
+        session: &Session,
+        key: &Object,
+        mechanism: M,
+        data: &[u8],
+    ) -> Result<Vec<u8>, Error>
+    where
+        M: Mechanism,
+    {
+        let signature = unsafe {
+            let sign_init = (*session.functions)
+                .C_SignInit
+                .ok_or(ErrorKind::MissingFunction("C_SignInit"))?;
+            let sign = (*session.functions)
+                .C_Sign
+                .ok_or(ErrorKind::MissingFunction("C_Sign"))?;
+
+            let mut mechanism = CK_MECHANISM {
+                mechanism: mechanism.r#type().into(),
+                pParameter: mechanism.as_ptr() as *mut c_void,
+                ulParameterLen: mechanism.len(),
+            };
+
+            // Initialize the sign operation
+            try_ck!(
+                "C_SignInit",
+                sign_init(session.handle, &mut mechanism, key.handle)
+            );
+
+            // Get the size
+            let mut size: CK_ULONG = mem::uninitialized();
+            let null_ptr = std::ptr::null_mut();
+            try_ck!(
+                "C_Sign",
+                sign(
+                    session.handle,
+                    data.as_ptr() as *mut u8,
+                    data.len() as CK_ULONG,
+                    null_ptr,
+                    &mut size
+                )
+            );
+
+            // Get the signature
+            let mut signature = Vec::with_capacity(size as usize);
+            try_ck!(
+                "C_Sign",
+                sign(
+                    session.handle,
+                    data.as_ptr() as *mut u8,
+                    data.len() as CK_ULONG,
+                    signature.as_mut_ptr(),
+                    &mut size
+                )
+            );
+            signature.set_len(size as usize);
+            signature
+        };
+        Ok(signature)
+    }
+}
+
+struct Verifier;
+
+impl Verifier {
+    pub fn verify<M>(
+        &self,
+        session: &Session,
+        key: &Object,
+        mechanism: M,
+        data: &[u8],
+        signature: &[u8],
+    ) -> Result<bool, Error>
+    where
+        M: Mechanism,
+    {
+        let verified = unsafe {
+            let verify_init = (*session.functions)
+                .C_VerifyInit
+                .ok_or(ErrorKind::MissingFunction("C_VerifyInit"))?;
+            let verify = (*session.functions)
+                .C_Verify
+                .ok_or(ErrorKind::MissingFunction("C_Verify"))?;
+
+            let mut mechanism = CK_MECHANISM {
+                mechanism: mechanism.r#type().into(),
+                pParameter: mechanism.as_ptr() as *mut c_void,
+                ulParameterLen: mechanism.len(),
+            };
+
+            // Initialize the sign operation
+            try_ck!(
+                "C_VerifyInit",
+                verify_init(session.handle, &mut mechanism, key.handle)
+            );
+
+            // Verify
+            let rv = verify(
+                session.handle,
+                data.as_ptr() as *mut u8,
+                data.len() as CK_ULONG,
+                signature.as_ptr() as *mut u8,
+                signature.len() as CK_ULONG,
+            );
+
+            if rv == CKR_SIGNATURE_INVALID.into() {
+                false
+            } else {
+                try_ck!("C_Verify", rv);
+                true
+            }
+        };
+        Ok(verified)
     }
 }
 

@@ -5,8 +5,32 @@ use futures::Stream;
 use hyper::rt::Future;
 use hyper::service::service_fn;
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
+use pkcs11::object::{MechanismType, Object};
+use pkcs11::session::Session;
+use rustls::internal::msgs::enums::SignatureAlgorithm;
 use rustls::internal::pemfile;
+use rustls::sign::Signer;
+use rustls::{SignatureScheme, TLSError};
 use tokio_rustls::TlsAcceptor;
+
+struct RsaKey {
+    session: Session,
+    key: Object,
+    mechanism: MechanismType,
+    scheme: SignatureScheme,
+}
+
+impl Signer for RsaKey {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, TLSError> {
+        self.session
+            .sign(&self.key, self.mechanism, message)
+            .map_err(|e| TLSError::General(format!("signing failed with {}", e)))
+    }
+
+    fn get_scheme(&self) -> SignatureScheme {
+        self.scheme
+    }
+}
 
 fn main() {
     // Serve an echo service over HTTPS, with proper error handling.
@@ -33,9 +57,12 @@ fn run_server() -> io::Result<()> {
     // Build TLS configuration.
     let tls_cfg = {
         // Load public certificate.
-        let certs = load_certs("/home/miyagley/Code/rust/pkcs11-rs/pkcs11/examples/certs/sample.pem")?;
+        let certs =
+            load_certs("/home/miyagley/Code/rust/pkcs11-rs/pkcs11/examples/certs/sample.pem")?;
         // Load private key.
-        let key = load_private_key("/home/miyagley/Code/rust/pkcs11-rs/pkcs11/examples/certs/sample.rsa")?;
+        let key = load_private_key(
+            "/home/miyagley/Code/rust/pkcs11-rs/pkcs11/examples/certs/sample.rsa",
+        )?;
         // Do not use client certificate authentication.
         let mut cfg = rustls::ServerConfig::new(rustls::NoClientAuth::new());
         // Select a certificate to use.
@@ -48,7 +75,8 @@ fn run_server() -> io::Result<()> {
     let tcp = tokio::net::TcpListener::bind(&addr)?;
     let tls_acceptor = TlsAcceptor::from(tls_cfg);
     // Prepare a long-running future stream to accept and serve cients.
-    let tls = tcp.incoming()
+    let tls = tcp
+        .incoming()
         .and_then(move |s| tls_acceptor.accept(s))
         .then(|r| match r {
             Ok(x) => Ok::<_, io::Error>(Some(x)),
@@ -66,8 +94,7 @@ fn run_server() -> io::Result<()> {
     // Run the future, keep going until an error occurs.
     println!("Starting to serve on https://{}.", addr);
     let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on_all(fut)
-        .map_err(|e| error(format!("{}", e)))?;
+    rt.block_on_all(fut).map_err(|e| error(format!("{}", e)))?;
     Ok(())
 }
 
@@ -98,22 +125,19 @@ fn echo(req: Request<Body>) -> ResponseFuture {
 // Load public certificate from file.
 fn load_certs(filename: &str) -> io::Result<Vec<rustls::Certificate>> {
     // Open certificate file.
-    let certfile = fs::File::open(filename).map_err(|e| {
-        error(format!("failed to open {}: {}", filename, e))
-    })?;
+    let certfile = fs::File::open(filename)
+        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
     let mut reader = io::BufReader::new(certfile);
 
     // Load and return certificate.
-    pemfile::certs(&mut reader)
-        .map_err(|_| error("failed to load certificate".into()))
+    pemfile::certs(&mut reader).map_err(|_| error("failed to load certificate".into()))
 }
 
 // Load private key from file.
 fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
     // Open keyfile.
-    let keyfile = fs::File::open(filename).map_err(|e| {
-        error(format!("failed to open {}: {}", filename, e))
-    })?;
+    let keyfile = fs::File::open(filename)
+        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
     let mut reader = io::BufReader::new(keyfile);
 
     // Load and return a single private key.
