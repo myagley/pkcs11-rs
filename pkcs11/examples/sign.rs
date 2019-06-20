@@ -3,6 +3,7 @@ use pkcs11::session::{SessionFlags, UserType};
 use pkcs11::{Error, ModuleBuilder};
 
 fn main() {
+    env_logger::init();
     if let Err(e) = run() {
         eprintln!("{}", e);
     }

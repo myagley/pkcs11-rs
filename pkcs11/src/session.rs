@@ -8,7 +8,7 @@ use pkcs11_sys::*;
 use scopeguard::defer;
 
 use crate::object::{Mechanism, Object, Template};
-use crate::{Error, ErrorKind, Module, SlotId};
+use crate::{Error, ErrorKind, Module, Pkcs11Error, SlotId};
 
 pub struct Session<'m> {
     pub(crate) slot_id: SlotId,
@@ -25,7 +25,10 @@ impl<'c> Session<'c> {
             let get_session = (*self.module.functions)
                 .C_GetSessionInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetSessionInfo"))?;
-            try_ck!(get_session(self.handle, &mut info.inner));
+            try_ck!(
+                "C_GetSessionInfo",
+                get_session(self.handle, &mut info.inner)
+            );
             info
         };
         Ok(info)
@@ -36,12 +39,15 @@ impl<'c> Session<'c> {
             let login = (*self.module.functions)
                 .C_Login
                 .ok_or(ErrorKind::MissingFunction("C_Login"))?;
-            try_ck!(login(
-                self.handle,
-                user_type.into(),
-                pin.as_ptr() as *mut u8,
-                pin.len() as CK_ULONG
-            ));
+            try_ck!(
+                "C_Login",
+                login(
+                    self.handle,
+                    user_type.into(),
+                    pin.as_ptr() as *mut u8,
+                    pin.len() as CK_ULONG
+                )
+            );
         }
         Ok(())
     }
@@ -51,7 +57,7 @@ impl<'c> Session<'c> {
             let logout = (*self.module.functions)
                 .C_Logout
                 .ok_or(ErrorKind::MissingFunction("C_Logout"))?;
-            try_ck!(logout(self.handle));
+            try_ck!("C_Logout", logout(self.handle));
         }
         Ok(())
     }
@@ -75,12 +81,15 @@ impl<'c> Session<'c> {
                 handle: mem::uninitialized(),
             };
 
-            try_ck!(create_object(
-                self.handle,
-                attributes.as_mut_ptr(),
-                attributes.len() as CK_ULONG,
-                &mut object.handle
-            ));
+            try_ck!(
+                "C_CreateObject",
+                create_object(
+                    self.handle,
+                    attributes.as_mut_ptr(),
+                    attributes.len() as CK_ULONG,
+                    &mut object.handle
+                )
+            );
             object
         };
         Ok(object)
@@ -91,7 +100,10 @@ impl<'c> Session<'c> {
             let destroy_object = (*self.module.functions)
                 .C_DestroyObject
                 .ok_or(ErrorKind::MissingFunction("C_DestroyObject"))?;
-            try_ck!(destroy_object(self.handle, object.handle));
+            try_ck!(
+                "C_DestroyObject",
+                destroy_object(self.handle, object.handle)
+            );
         }
         Ok(())
     }
@@ -118,16 +130,24 @@ impl<'c> Session<'c> {
                 .C_FindObjectsFinal
                 .ok_or(ErrorKind::MissingFunction("C_FindObjectsFinal"))?;
 
-            try_ck!(find_objects_init(
-                self.handle,
-                attributes.as_mut_ptr(),
-                attributes.len() as CK_ULONG
-            ));
+            try_ck!(
+                "C_FindObjectsInit",
+                find_objects_init(
+                    self.handle,
+                    attributes.as_mut_ptr(),
+                    attributes.len() as CK_ULONG
+                )
+            );
 
             // scopeguard the call to find_objects_final so that it always
             // runs now that the find operation has been initialized
             defer! {{
-                find_objects_final(self.handle);
+                let rv = find_objects_final(self.handle);
+                if rv == CKR_OK.into() {
+                    log::trace!("C_FindObjectFinal succeeded");
+                } else {
+                    log::trace!("C_FindObjectFinal failed with {}", Pkcs11Error::from(rv.into()));
+                }
             }}
 
             let mut object_count: CK_ULONG = mem::uninitialized();
@@ -139,12 +159,15 @@ impl<'c> Session<'c> {
             while {
                 let mut chunk = Vec::with_capacity(cap);
 
-                try_ck!(find_objects(
-                    self.handle,
-                    chunk.as_mut_ptr(),
-                    cap as CK_ULONG,
-                    &mut object_count as *mut CK_ULONG
-                ));
+                try_ck!(
+                    "C_FindObjects",
+                    find_objects(
+                        self.handle,
+                        chunk.as_mut_ptr(),
+                        cap as CK_ULONG,
+                        &mut object_count as *mut CK_ULONG
+                    )
+                );
                 chunk.set_len(object_count as usize + chunk.len());
                 chunk.reserve(object_count as usize);
                 objects.append(&mut chunk);
@@ -176,28 +199,37 @@ impl<'c> Session<'c> {
             };
 
             // Initialize the sign operation
-            try_ck!(sign_init(self.handle, &mut mechanism, key.handle));
+            try_ck!(
+                "C_SignInit",
+                sign_init(self.handle, &mut mechanism, key.handle)
+            );
 
             // Get the size
             let mut size: CK_ULONG = mem::uninitialized();
             let null_ptr = std::ptr::null_mut();
-            try_ck!(sign(
-                self.handle,
-                data.as_ptr() as *mut u8,
-                data.len() as CK_ULONG,
-                null_ptr,
-                &mut size
-            ));
+            try_ck!(
+                "C_Sign",
+                sign(
+                    self.handle,
+                    data.as_ptr() as *mut u8,
+                    data.len() as CK_ULONG,
+                    null_ptr,
+                    &mut size
+                )
+            );
 
             // Get the signature
             let mut signature = Vec::with_capacity(size as usize);
-            try_ck!(sign(
-                self.handle,
-                data.as_ptr() as *mut u8,
-                data.len() as CK_ULONG,
-                signature.as_mut_ptr(),
-                &mut size
-            ));
+            try_ck!(
+                "C_Sign",
+                sign(
+                    self.handle,
+                    data.as_ptr() as *mut u8,
+                    data.len() as CK_ULONG,
+                    signature.as_mut_ptr(),
+                    &mut size
+                )
+            );
             signature.set_len(size as usize);
             signature
         };
@@ -229,7 +261,10 @@ impl<'c> Session<'c> {
             };
 
             // Initialize the sign operation
-            try_ck!(verify_init(self.handle, &mut mechanism, key.handle));
+            try_ck!(
+                "C_VerifyInit",
+                verify_init(self.handle, &mut mechanism, key.handle)
+            );
 
             // Verify
             let rv = verify(
@@ -243,7 +278,7 @@ impl<'c> Session<'c> {
             if rv == CKR_SIGNATURE_INVALID.into() {
                 false
             } else {
-                try_ck!(rv);
+                try_ck!("C_Verify", rv);
                 true
             }
         };

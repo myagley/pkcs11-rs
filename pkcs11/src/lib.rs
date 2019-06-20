@@ -17,7 +17,7 @@ mod error;
 pub mod object;
 pub mod session;
 
-pub use crate::error::{Error, ErrorKind, FunctionErrorReason};
+pub use crate::error::{Error, ErrorKind, Pkcs11Error};
 use crate::object::{MechanismInfo, MechanismType};
 use crate::session::{Session, SessionFlags};
 
@@ -71,12 +71,13 @@ impl ModuleBuilder {
                     flags: CKF_OS_LOCKING_OK as CK_FLAGS,
                     pReserved: arg,
                 };
-
-                try_ck!((*functions)
+                let initialize = (*functions)
                     .C_Initialize
-                    .ok_or(ErrorKind::MissingFunction("C_Initialize"))?(
-                    &mut args as *mut _ as *mut c_void,
-                ));
+                    .ok_or(ErrorKind::MissingFunction("C_Initialize"))?;
+                try_ck!(
+                    "C_Initialize",
+                    initialize(&mut args as *mut _ as *mut c_void)
+                );
             }
             initialized.insert(self.module_path.clone());
         }
@@ -116,7 +117,7 @@ impl Module {
             let get_info = (*self.functions)
                 .C_GetInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetInfo"))?;
-            try_ck!(get_info(&mut info.inner));
+            try_ck!("C_GetInfo", get_info(&mut info.inner));
             info
         };
         Ok(info)
@@ -132,7 +133,10 @@ impl Module {
             let get_slot_info = (*self.functions)
                 .C_GetSlotInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetSlotInfo"))?;
-            try_ck!(get_slot_info(slot_id.into().0, &mut slot_info.inner));
+            try_ck!(
+                "C_GetSlotInfo",
+                get_slot_info(slot_id.into().0, &mut slot_info.inner)
+            );
             slot_info
         };
         Ok(slot_info)
@@ -148,7 +152,10 @@ impl Module {
             let get_token_info = (*self.functions)
                 .C_GetTokenInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetTokenInfo"))?;
-            try_ck!(get_token_info(slot_id.into().0, &mut token_info.inner));
+            try_ck!(
+                "C_GetTokenInfo",
+                get_token_info(slot_id.into().0, &mut token_info.inner)
+            );
             token_info
         };
         Ok(token_info)
@@ -170,11 +177,14 @@ impl Module {
             let get_mechanism_info = (*self.functions)
                 .C_GetMechanismInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetMechanismInfo"))?;
-            try_ck!(get_mechanism_info(
-                slot_id.into().0,
-                mechanism_type.into(),
-                &mut mechanism_info.inner
-            ));
+            try_ck!(
+                "C_GetMechanismInfo",
+                get_mechanism_info(
+                    slot_id.into().0,
+                    mechanism_type.into(),
+                    &mut mechanism_info.inner
+                )
+            );
             mechanism_info
         };
         Ok(mechanism_info)
@@ -193,19 +203,17 @@ impl Module {
             // Get the count of slots
             let mut count: CK_ULONG = mem::uninitialized();
             let arg = std::ptr::null_mut();
-            try_ck!(get_mechanism_list(
-                slot_id.0,
-                arg,
-                (&mut count) as *mut CK_ULONG
-            ));
+            try_ck!(
+                "C_GetMechanismList",
+                get_mechanism_list(slot_id.0, arg, (&mut count) as *mut CK_ULONG)
+            );
 
             // Fill in the data
             let mut types = Vec::with_capacity(count as usize);
-            try_ck!(get_mechanism_list(
-                slot_id.0,
-                types.as_mut_ptr(),
-                (&mut count) as *mut CK_ULONG
-            ));
+            try_ck!(
+                "C_GetMechanismList",
+                get_mechanism_list(slot_id.0, types.as_mut_ptr(), (&mut count) as *mut CK_ULONG)
+            );
             types.set_len(count as usize);
             types
         };
@@ -231,19 +239,21 @@ impl Module {
             // Get the count of slots
             let mut count: CK_ULONG = mem::uninitialized();
             let arg = std::ptr::null_mut();
-            try_ck!(get_slot_list(
-                token_present,
-                arg,
-                (&mut count) as *mut CK_ULONG
-            ));
+            try_ck!(
+                "C_GetSlotList",
+                get_slot_list(token_present, arg, (&mut count) as *mut CK_ULONG)
+            );
 
             // Fill in the data
             let mut slot_ids = Vec::with_capacity(count as usize);
-            try_ck!(get_slot_list(
-                token_present,
-                slot_ids.as_mut_ptr(),
-                (&mut count) as *mut CK_ULONG
-            ));
+            try_ck!(
+                "C_GetSlotList",
+                get_slot_list(
+                    token_present,
+                    slot_ids.as_mut_ptr(),
+                    (&mut count) as *mut CK_ULONG
+                )
+            );
             slot_ids.set_len(count as usize);
             slot_ids
         };
@@ -272,13 +282,16 @@ impl Module {
                 .C_OpenSession
                 .ok_or(ErrorKind::MissingFunction("C_OpenSession"))?;
 
-            try_ck!(open_session(
-                slot_id.0,
-                flags.bits(),
-                p_application,
-                Option::None,
-                &mut session.handle
-            ));
+            try_ck!(
+                "C_OpenSession",
+                open_session(
+                    slot_id.0,
+                    flags.bits(),
+                    p_application,
+                    Option::None,
+                    &mut session.handle
+                )
+            );
             session
         };
         Ok(session)
