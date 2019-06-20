@@ -53,7 +53,7 @@ impl Session {
         Ok(info)
     }
 
-    pub fn login(self, user_type: UserType, pin: &str) -> Result<(), Error> {
+    pub fn login(&self, user_type: UserType, pin: &str) -> Result<(), Error> {
         unsafe {
             let login = (*self.functions)
                 .C_Login
@@ -364,6 +364,8 @@ impl Signer {
                 pParameter: mechanism.as_ptr() as *mut c_void,
                 ulParameterLen: mechanism.len(),
             };
+
+            println!("{:?}", mechanism.mechanism);
 
             // Initialize the sign operation
             try_ck!(
