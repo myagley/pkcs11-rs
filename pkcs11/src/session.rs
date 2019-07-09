@@ -9,7 +9,7 @@ use pkcs11_sys::*;
 use scopeguard::defer;
 
 use crate::object::{Mechanism, Object, Template};
-use crate::{Error, ErrorKind, Pkcs11Error, Module, SlotId};
+use crate::{Error, ErrorKind, Module, Pkcs11Error, SlotId};
 
 pub struct Session<'m> {
     slot_id: SlotId,
@@ -21,11 +21,7 @@ pub struct Session<'m> {
 }
 
 impl<'m> Session<'m> {
-    pub(crate) fn new(
-        slot_id: SlotId,
-        module: &'m Module,
-        handle: CK_SESSION_HANDLE,
-    ) -> Self {
+    pub(crate) fn new(slot_id: SlotId, module: &'m Module, handle: CK_SESSION_HANDLE) -> Self {
         Self {
             slot_id,
             module,

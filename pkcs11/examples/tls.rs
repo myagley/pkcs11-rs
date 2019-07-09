@@ -23,7 +23,6 @@ lazy_static! {
         .unwrap();
 }
 
-
 pub struct Resolver(CertifiedKey);
 
 impl Resolver {
@@ -257,16 +256,20 @@ fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
 // Load private key from file.
 fn load_private_key_pkcs11(module: &'static Module) -> io::Result<RsaKey> {
     // Initialize pkcs11 module and login to session
-    let session = module.session(595651617, SessionFlags::RW).unwrap();
-    session.login(UserType::User, "1234").unwrap();
+    let session = module
+        .session(595651617, SessionFlags::RW)
+        .map_err(|e| error(format!("get session failed with {}", e)))?;
+    session
+        .login(UserType::User, "1234")
+        .map_err(|e| error(format!("login failed with {}", e)))?;
 
     let mut template = RsaPrivateKeyTemplate::new();
     template.label("tls2".to_string());
     let key = session
         .find_objects(&template)
-        .unwrap()
+        .map_err(|e| error(format!("find objects failed with {}", e)))?
         .into_iter()
         .nth(0)
-        .unwrap();
+        .ok_or(error("no key found".to_string()))?;
     Ok(RsaKey::new(session, key))
 }
