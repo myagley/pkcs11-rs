@@ -12,6 +12,7 @@ rustls = "0.15"
 webpki = "0.19"
 
 pkcs11 = { path = "../pkcs11" }
+pkcs11-sys = { path = "../pkcs11-sys" }
 
 [dev-dependencies]
 env_logger = "0.6"

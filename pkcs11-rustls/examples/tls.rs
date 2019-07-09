@@ -6,13 +6,12 @@ use hyper::rt::Future;
 use hyper::service::service_fn;
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use lazy_static::lazy_static;
-use pkcs11::{Module, ModuleBuilder};
 use pkcs11::object::*;
 use pkcs11::session::{SessionFlags, UserType};
+use pkcs11::{Module, ModuleBuilder};
 use pkcs11_rustls::{Resolver, RsaKey};
-use tokio_rustls::TlsAcceptor;
 use tokio_rustls::rustls::internal::pemfile;
-
+use tokio_rustls::TlsAcceptor;
 
 lazy_static! {
     static ref MODULE: Module = ModuleBuilder::new()
@@ -47,8 +46,9 @@ fn run_server() -> io::Result<()> {
     // Build TLS configuration.
     let tls_cfg = {
         // Load public certificate.
-        let certs =
-            load_certs("/home/miyagley/Code/rust/pkcs11-rs/pkcs11-rustls/examples/certs/sample.pem")?;
+        let certs = load_certs(
+            "/home/miyagley/Code/rust/pkcs11-rs/pkcs11-rustls/examples/certs/sample.pem",
+        )?;
         // Load private key.
         let key = load_private_key_pkcs11(&MODULE)?;
         // Do not use client certificate authentication.
