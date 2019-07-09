@@ -49,12 +49,12 @@ fn first_in_both<T: Clone + PartialEq>(prefs: &[T], avail: &[T]) -> Option<T> {
 }
 
 pub struct RsaKey {
-    session: Session<'static>,
+    session: Session,
     key: Object,
 }
 
 impl RsaKey {
-    pub fn new(session: Session<'static>, key: Object) -> Self {
+    pub fn new(session: Session, key: Object) -> Self {
         Self { session, key }
     }
 }

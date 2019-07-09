@@ -11,17 +11,17 @@ use scopeguard::defer;
 use crate::object::{Mechanism, Object, Template};
 use crate::{Error, ErrorKind, Module, Pkcs11Error, SlotId};
 
-pub struct Session<'m> {
+pub struct Session {
     slot_id: SlotId,
-    module: &'m Module,
+    module: Module,
     handle: CK_SESSION_HANDLE,
     signer: Mutex<Signer>,
     verifier: Mutex<Verifier>,
     finder: Mutex<Finder>,
 }
 
-impl<'m> Session<'m> {
-    pub(crate) fn new(slot_id: SlotId, module: &'m Module, handle: CK_SESSION_HANDLE) -> Self {
+impl Session {
+    pub(crate) fn new(slot_id: SlotId, module: Module, handle: CK_SESSION_HANDLE) -> Self {
         Self {
             slot_id,
             module,
@@ -37,7 +37,7 @@ impl<'m> Session<'m> {
             let mut info = SessionInfo {
                 inner: mem::uninitialized(),
             };
-            let get_session = (*self.module.functions)
+            let get_session = (*self.module.inner.functions)
                 .C_GetSessionInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetSessionInfo"))?;
             try_ck!(
@@ -51,7 +51,7 @@ impl<'m> Session<'m> {
 
     pub fn login(&self, user_type: UserType, pin: &str) -> Result<(), Error> {
         unsafe {
-            let login = (*self.module.functions)
+            let login = (*self.module.inner.functions)
                 .C_Login
                 .ok_or(ErrorKind::MissingFunction("C_Login"))?;
             try_ck!(
@@ -69,7 +69,7 @@ impl<'m> Session<'m> {
 
     pub fn logout(&self) -> Result<(), Error> {
         unsafe {
-            let logout = (*self.module.functions)
+            let logout = (*self.module.inner.functions)
                 .C_Logout
                 .ok_or(ErrorKind::MissingFunction("C_Logout"))?;
             try_ck!("C_Logout", logout(self.handle));
@@ -89,7 +89,7 @@ impl<'m> Session<'m> {
         }
 
         let object = unsafe {
-            let create_object = (*self.module.functions)
+            let create_object = (*self.module.inner.functions)
                 .C_CreateObject
                 .ok_or(ErrorKind::MissingFunction("C_CreateObject"))?;
             let mut object = Object {
@@ -112,7 +112,7 @@ impl<'m> Session<'m> {
 
     pub fn destroy_object(&self, object: Object) -> Result<(), Error> {
         unsafe {
-            let destroy_object = (*self.module.functions)
+            let destroy_object = (*self.module.inner.functions)
                 .C_DestroyObject
                 .ok_or(ErrorKind::MissingFunction("C_DestroyObject"))?;
             try_ck!(
@@ -152,10 +152,10 @@ impl<'m> Session<'m> {
 }
 
 // This is safe because the module is initialized with CKF_OS_LOCKING_OK
-unsafe impl Send for Session<'_> {}
-unsafe impl Sync for Session<'_> {}
+unsafe impl Send for Session {}
+unsafe impl Sync for Session {}
 
-impl fmt::Debug for Session<'_> {
+impl fmt::Debug for Session {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut d = f.debug_struct("Session");
         d.field("slot_id", &self.slot_id.0);
@@ -164,10 +164,10 @@ impl fmt::Debug for Session<'_> {
     }
 }
 
-impl Drop for Session<'_> {
+impl Drop for Session {
     fn drop(&mut self) {
         unsafe {
-            if let Some(close) = (*self.module.functions).C_CloseSession {
+            if let Some(close) = (*self.module.inner.functions).C_CloseSession {
                 close(self.handle);
             }
         }
@@ -273,13 +273,13 @@ impl Finder {
         }
 
         let objects = unsafe {
-            let find_objects_init = (*session.module.functions)
+            let find_objects_init = (*session.module.inner.functions)
                 .C_FindObjectsInit
                 .ok_or(ErrorKind::MissingFunction("C_FindObjectsInit"))?;
-            let find_objects = (*session.module.functions)
+            let find_objects = (*session.module.inner.functions)
                 .C_FindObjects
                 .ok_or(ErrorKind::MissingFunction("C_FindObjects"))?;
-            let find_objects_final = (*session.module.functions)
+            let find_objects_final = (*session.module.inner.functions)
                 .C_FindObjectsFinal
                 .ok_or(ErrorKind::MissingFunction("C_FindObjectsFinal"))?;
 
@@ -348,10 +348,10 @@ impl Signer {
         M: Mechanism,
     {
         let signature = unsafe {
-            let sign_init = (*session.module.functions)
+            let sign_init = (*session.module.inner.functions)
                 .C_SignInit
                 .ok_or(ErrorKind::MissingFunction("C_SignInit"))?;
-            let sign = (*session.module.functions)
+            let sign = (*session.module.inner.functions)
                 .C_Sign
                 .ok_or(ErrorKind::MissingFunction("C_Sign"))?;
 
@@ -415,10 +415,10 @@ impl Verifier {
         M: Mechanism,
     {
         let verified = unsafe {
-            let verify_init = (*session.module.functions)
+            let verify_init = (*session.module.inner.functions)
                 .C_VerifyInit
                 .ok_or(ErrorKind::MissingFunction("C_VerifyInit"))?;
-            let verify = (*session.module.functions)
+            let verify = (*session.module.inner.functions)
                 .C_Verify
                 .ok_or(ErrorKind::MissingFunction("C_Verify"))?;
 

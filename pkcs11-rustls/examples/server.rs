@@ -7,20 +7,12 @@ use futures::Stream;
 use hyper::rt::Future;
 use hyper::service::service_fn;
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
-use lazy_static::lazy_static;
 use pkcs11::object::*;
 use pkcs11::session::{SessionFlags, UserType};
 use pkcs11::{Module, ModuleBuilder};
 use pkcs11_rustls::{Resolver, RsaKey};
 use tokio_rustls::rustls::internal::pemfile;
 use tokio_rustls::TlsAcceptor;
-
-lazy_static! {
-    static ref MODULE: Module = ModuleBuilder::new()
-        .path("/usr/local/lib/softhsm/libsofthsm2.so")
-        .initialize()
-        .unwrap();
-}
 
 fn app() -> App<'static, 'static> {
     App::new("server")
@@ -69,12 +61,17 @@ fn run_server() -> io::Result<()> {
     let cert_file = matches.value_of("cert").unwrap();
     let key_label = matches.value_of("key").unwrap();
 
+    let module = ModuleBuilder::new()
+        .path("/usr/local/lib/softhsm/libsofthsm2.so")
+        .initialize()
+        .unwrap();
+
     // Build TLS configuration.
     let tls_cfg = {
         // Load public certificate.
         let certs = load_certs(cert_file)?;
         // Load private key.
-        let key = load_private_key_pkcs11(&MODULE, &key_label)?;
+        let key = load_private_key_pkcs11(&module, &key_label)?;
         // Do not use client certificate authentication.
         let mut cfg = rustls::ServerConfig::new(rustls::NoClientAuth::new());
         // Select a certificate to use.
@@ -163,7 +160,7 @@ fn load_certs(filename: &str) -> io::Result<Vec<rustls::Certificate>> {
 // }
 
 // Load private key from file.
-fn load_private_key_pkcs11(module: &'static Module, label: &str) -> io::Result<RsaKey> {
+fn load_private_key_pkcs11<'m>(module: &'m Module, label: &str) -> io::Result<RsaKey> {
     // Initialize pkcs11 module and login to session
     let session = module
         .session(595651617, SessionFlags::RW)
