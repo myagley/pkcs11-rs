@@ -14,7 +14,7 @@ fn run() -> Result<(), Error> {
     let module = ModuleBuilder::new()
         .path("/usr/local/lib/softhsm/libsofthsm2.so")
         .initialize()?;
-    let mut session = module.session(595651617, SessionFlags::RW)?;
+    let session = module.session(595651617, SessionFlags::RW)?;
     session.login(UserType::User, "1234")?;
 
     // Import the key

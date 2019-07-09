@@ -4,7 +4,7 @@ use std::ffi::c_void;
 use std::mem;
 use std::path::PathBuf;
 use std::str;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use failure::ResultExt;
 use lazy_static::lazy_static;
@@ -25,7 +25,12 @@ lazy_static! {
     static ref INITIALIZED_CRYPTOKI: Mutex<HashSet<PathBuf>> = Mutex::new(HashSet::new());
 }
 
+#[derive(Clone)]
 pub struct Module {
+    inner: Arc<Inner>,
+}
+
+struct Inner {
     functions: CK_FUNCTION_LIST_PTR,
     _lib: lib::Library,
     version: CK_VERSION,
@@ -90,10 +95,13 @@ impl ModuleBuilder {
             }
         };
 
-        let module = Module {
+        let inner = Inner {
             functions,
             _lib: lib,
             version,
+        };
+        let module = Module {
+            inner: Arc::new(inner),
         };
         Ok(module)
     }
@@ -103,8 +111,8 @@ impl Module {
     /// Cryptoki API version
     pub fn version(&self) -> Version {
         Version {
-            major: self.version.major,
-            minor: self.version.minor,
+            major: self.inner.version.major,
+            minor: self.inner.version.minor,
         }
     }
 
@@ -114,7 +122,7 @@ impl Module {
             let mut info = Info {
                 inner: mem::uninitialized(),
             };
-            let get_info = (*self.functions)
+            let get_info = (*self.inner.functions)
                 .C_GetInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetInfo"))?;
             try_ck!("C_GetInfo", get_info(&mut info.inner));
@@ -130,7 +138,7 @@ impl Module {
             let mut slot_info = SlotInfo {
                 inner: mem::uninitialized(),
             };
-            let get_slot_info = (*self.functions)
+            let get_slot_info = (*self.inner.functions)
                 .C_GetSlotInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetSlotInfo"))?;
             try_ck!(
@@ -149,7 +157,7 @@ impl Module {
             let mut token_info = TokenInfo {
                 inner: mem::uninitialized(),
             };
-            let get_token_info = (*self.functions)
+            let get_token_info = (*self.inner.functions)
                 .C_GetTokenInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetTokenInfo"))?;
             try_ck!(
@@ -174,7 +182,7 @@ impl Module {
             let mut mechanism_info = MechanismInfo {
                 inner: mem::uninitialized(),
             };
-            let get_mechanism_info = (*self.functions)
+            let get_mechanism_info = (*self.inner.functions)
                 .C_GetMechanismInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetMechanismInfo"))?;
             try_ck!(
@@ -196,7 +204,7 @@ impl Module {
     pub fn mechanism_list<S: Into<SlotId>>(&self, slot_id: S) -> Result<Vec<MechanismType>, Error> {
         let types = unsafe {
             let slot_id = slot_id.into();
-            let get_mechanism_list = (*self.functions)
+            let get_mechanism_list = (*self.inner.functions)
                 .C_GetMechanismList
                 .ok_or(ErrorKind::MissingFunction("C_GetMechanismList"))?;
 
@@ -232,7 +240,7 @@ impl Module {
                 CK_TRUE as u8
             };
 
-            let get_slot_list = (*self.functions)
+            let get_slot_list = (*self.inner.functions)
                 .C_GetSlotList
                 .ok_or(ErrorKind::MissingFunction("C_GetSlotList"))?;
 
@@ -262,26 +270,22 @@ impl Module {
 
     /// Opens a connection between an application and a particular token or
     /// sets up an application callback for token insertion
-    pub fn session<'c, S: Into<SlotId>>(
-        &'c self,
+    pub fn session<S: Into<SlotId>>(
+        &self,
         slot_id: S,
         mut flags: SessionFlags,
-    ) -> Result<Session<'c>, Error> {
+    ) -> Result<Session, Error> {
         let slot_id = slot_id.into();
         // (5.6) For legacy reasons, the CKF_SERIAL_SESSION bit MUST always be set
         flags.insert(SessionFlags::SERIAL);
 
         let session = unsafe {
-            let mut session = Session {
-                slot_id,
-                module: self,
-                handle: mem::uninitialized(),
-            };
             let p_application = std::ptr::null_mut();
-            let open_session = (*self.functions)
+            let open_session = (*self.inner.functions)
                 .C_OpenSession
                 .ok_or(ErrorKind::MissingFunction("C_OpenSession"))?;
 
+            let mut handle = mem::uninitialized();
             try_ck!(
                 "C_OpenSession",
                 open_session(
@@ -289,10 +293,10 @@ impl Module {
                     flags.bits(),
                     p_application,
                     Option::None,
-                    &mut session.handle
+                    &mut handle,
                 )
             );
-            session
+            Session::new(self.clone(), slot_id, handle)
         };
         Ok(session)
     }

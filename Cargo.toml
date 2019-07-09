@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "pkcs11",
+    "pkcs11-rustls",
     "pkcs11-sys",
 ]
 

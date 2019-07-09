@@ -1,0 +1,24 @@
+[package]
+name = "pkcs11-rustls"
+version = "0.1.0"
+authors = ["Mike Yagley <myagley@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ring = "0.14.6"
+rustls = "0.15"
+webpki = "0.19"
+
+pkcs11 = { path = "../pkcs11" }
+pkcs11-sys = { path = "../pkcs11-sys" }
+
+[dev-dependencies]
+clap = "2"
+env_logger = "0.6"
+futures = "0.1"
+hyper = "0.12"
+hyper-rustls = "0.16"
+tokio = "0.1"
+tokio-rustls = "0.9"

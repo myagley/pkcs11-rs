@@ -263,7 +263,6 @@ impl RsaPrivateKeyTemplate {
     attr_bool!(is_local, CKA_LOCAL);
     attr_mech!(keygen_mechanism, CKA_KEY_GEN_MECHANISM);
     //attr_mech_array!(allowed_mechanisms, CKA_ALLOWED_MECHANISMS);
-    attr_bytes!(value, CKA_VALUE);
 
     // Private key attributes
     attr_bytes!(subject, CKA_SUBJECT);
