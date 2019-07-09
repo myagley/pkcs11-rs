@@ -4,10 +4,30 @@ use std::mem;
 pub use num_bigint::BigUint;
 use pkcs11_sys::*;
 
+use crate::session::Session;
+use crate::Error;
+
 /// A token-specific identifier for an object.
 #[derive(Debug)]
 pub struct Object {
     pub(crate) handle: CK_OBJECT_HANDLE,
+    pub(crate) session: Session,
+}
+
+impl Object {
+    pub fn sign<M>(&self, mechanism: M, data: &[u8]) -> Result<Vec<u8>, Error>
+    where
+        M: Mechanism,
+    {
+        self.session.sign(&self, mechanism, data)
+    }
+
+    pub fn verify<M>(&self, mechanism: M, data: &[u8], signature: &[u8]) -> Result<bool, Error>
+    where
+        M: Mechanism,
+    {
+        self.session.verify(&self, mechanism, data, signature)
+    }
 }
 
 /// A value that identifies the classes (or types) of objects that Cryptoki

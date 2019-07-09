@@ -296,7 +296,7 @@ impl Module {
                     &mut handle,
                 )
             );
-            Session::new(slot_id, self.clone(), handle)
+            Session::new(self.clone(), slot_id, handle)
         };
         Ok(session)
     }

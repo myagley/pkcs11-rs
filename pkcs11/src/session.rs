@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::fmt;
 use std::mem;
 use std::ops::Drop;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use bitflags::bitflags;
 use pkcs11_sys::*;
@@ -11,7 +11,12 @@ use scopeguard::defer;
 use crate::object::{Mechanism, Object, Template};
 use crate::{Error, ErrorKind, Module, Pkcs11Error, SlotId};
 
+#[derive(Clone)]
 pub struct Session {
+    inner: Arc<Inner>,
+}
+
+struct Inner {
     slot_id: SlotId,
     module: Module,
     handle: CK_SESSION_HANDLE,
@@ -20,15 +25,28 @@ pub struct Session {
     finder: Mutex<Finder>,
 }
 
+impl Drop for Inner {
+    fn drop(&mut self) {
+        unsafe {
+            if let Some(close) = (*self.module.inner.functions).C_CloseSession {
+                close(self.handle);
+            }
+        }
+    }
+}
+
 impl Session {
-    pub(crate) fn new(slot_id: SlotId, module: Module, handle: CK_SESSION_HANDLE) -> Self {
-        Self {
+    pub(crate) fn new(module: Module, slot_id: SlotId, handle: CK_SESSION_HANDLE) -> Self {
+        let inner = Inner {
             slot_id,
             module,
             handle,
             signer: Mutex::new(Signer),
             verifier: Mutex::new(Verifier),
             finder: Mutex::new(Finder),
+        };
+        Self {
+            inner: Arc::new(inner),
         }
     }
 
@@ -37,12 +55,12 @@ impl Session {
             let mut info = SessionInfo {
                 inner: mem::uninitialized(),
             };
-            let get_session = (*self.module.inner.functions)
+            let get_session = (*self.inner.module.inner.functions)
                 .C_GetSessionInfo
                 .ok_or(ErrorKind::MissingFunction("C_GetSessionInfo"))?;
             try_ck!(
                 "C_GetSessionInfo",
-                get_session(self.handle, &mut info.inner)
+                get_session(self.inner.handle, &mut info.inner)
             );
             info
         };
@@ -51,13 +69,13 @@ impl Session {
 
     pub fn login(&self, user_type: UserType, pin: &str) -> Result<(), Error> {
         unsafe {
-            let login = (*self.module.inner.functions)
+            let login = (*self.inner.module.inner.functions)
                 .C_Login
                 .ok_or(ErrorKind::MissingFunction("C_Login"))?;
             try_ck!(
                 "C_Login",
                 login(
-                    self.handle,
+                    self.inner.handle,
                     user_type.into(),
                     pin.as_ptr() as *mut u8,
                     pin.len() as CK_ULONG
@@ -69,10 +87,10 @@ impl Session {
 
     pub fn logout(&self) -> Result<(), Error> {
         unsafe {
-            let logout = (*self.module.inner.functions)
+            let logout = (*self.inner.module.inner.functions)
                 .C_Logout
                 .ok_or(ErrorKind::MissingFunction("C_Logout"))?;
-            try_ck!("C_Logout", logout(self.handle));
+            try_ck!("C_Logout", logout(self.inner.handle));
         }
         Ok(())
     }
@@ -89,17 +107,18 @@ impl Session {
         }
 
         let object = unsafe {
-            let create_object = (*self.module.inner.functions)
+            let create_object = (*self.inner.module.inner.functions)
                 .C_CreateObject
                 .ok_or(ErrorKind::MissingFunction("C_CreateObject"))?;
             let mut object = Object {
                 handle: mem::uninitialized(),
+                session: self.clone(),
             };
 
             try_ck!(
                 "C_CreateObject",
                 create_object(
-                    self.handle,
+                    self.inner.handle,
                     attributes.as_mut_ptr(),
                     attributes.len() as CK_ULONG,
                     &mut object.handle
@@ -112,31 +131,31 @@ impl Session {
 
     pub fn destroy_object(&self, object: Object) -> Result<(), Error> {
         unsafe {
-            let destroy_object = (*self.module.inner.functions)
+            let destroy_object = (*self.inner.module.inner.functions)
                 .C_DestroyObject
                 .ok_or(ErrorKind::MissingFunction("C_DestroyObject"))?;
             try_ck!(
                 "C_DestroyObject",
-                destroy_object(self.handle, object.handle)
+                destroy_object(self.inner.handle, object.handle)
             );
         }
         Ok(())
     }
 
     pub fn find_objects<T: Template>(&self, template: &T) -> Result<Vec<Object>, Error> {
-        let finder = self.finder.lock().expect("finder lock poisoned");
+        let finder = self.inner.finder.lock().expect("finder lock poisoned");
         finder.find_objects(&self, template)
     }
 
-    pub fn sign<M>(&self, key: &Object, mechanism: M, data: &[u8]) -> Result<Vec<u8>, Error>
+    pub(crate) fn sign<M>(&self, key: &Object, mechanism: M, data: &[u8]) -> Result<Vec<u8>, Error>
     where
         M: Mechanism,
     {
-        let signer = self.signer.lock().expect("signer lock poisoned");
+        let signer = self.inner.signer.lock().expect("signer lock poisoned");
         signer.sign(&self, key, mechanism, data)
     }
 
-    pub fn verify<M>(
+    pub(crate) fn verify<M>(
         &self,
         key: &Object,
         mechanism: M,
@@ -146,7 +165,7 @@ impl Session {
     where
         M: Mechanism,
     {
-        let verifier = self.verifier.lock().expect("verifier lock poisoned");
+        let verifier = self.inner.verifier.lock().expect("verifier lock poisoned");
         verifier.verify(&self, key, mechanism, data, signature)
     }
 }
@@ -158,19 +177,9 @@ unsafe impl Sync for Session {}
 impl fmt::Debug for Session {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut d = f.debug_struct("Session");
-        d.field("slot_id", &self.slot_id.0);
-        d.field("handle", &self.handle);
+        d.field("slot_id", &self.inner.slot_id.0);
+        d.field("handle", &self.inner.handle);
         d.finish()
-    }
-}
-
-impl Drop for Session {
-    fn drop(&mut self) {
-        unsafe {
-            if let Some(close) = (*self.module.inner.functions).C_CloseSession {
-                close(self.handle);
-            }
-        }
     }
 }
 
@@ -273,20 +282,20 @@ impl Finder {
         }
 
         let objects = unsafe {
-            let find_objects_init = (*session.module.inner.functions)
+            let find_objects_init = (*session.inner.module.inner.functions)
                 .C_FindObjectsInit
                 .ok_or(ErrorKind::MissingFunction("C_FindObjectsInit"))?;
-            let find_objects = (*session.module.inner.functions)
+            let find_objects = (*session.inner.module.inner.functions)
                 .C_FindObjects
                 .ok_or(ErrorKind::MissingFunction("C_FindObjects"))?;
-            let find_objects_final = (*session.module.inner.functions)
+            let find_objects_final = (*session.inner.module.inner.functions)
                 .C_FindObjectsFinal
                 .ok_or(ErrorKind::MissingFunction("C_FindObjectsFinal"))?;
 
             try_ck!(
                 "C_FindObjectsInit",
                 find_objects_init(
-                    session.handle,
+                    session.inner.handle,
                     attributes.as_mut_ptr(),
                     attributes.len() as CK_ULONG
                 )
@@ -295,7 +304,7 @@ impl Finder {
             // scopeguard the call to find_objects_final so that it always
             // runs now that the find operation has been initialized
             defer! {{
-                let rv = find_objects_final(session.handle);
+                let rv = find_objects_final(session.inner.handle);
                 if rv == CKR_OK.into() {
                     log::trace!("C_FindObjectFinal succeeded");
                 } else {
@@ -315,7 +324,7 @@ impl Finder {
                 try_ck!(
                     "C_FindObjects",
                     find_objects(
-                        session.handle,
+                        session.inner.handle,
                         chunk.as_mut_ptr(),
                         cap as CK_ULONG,
                         &mut object_count as *mut CK_ULONG
@@ -328,7 +337,13 @@ impl Finder {
                 // exit loop when no more objects
                 object_count != 0
             } {}
-            objects.iter().map(|obj| Object { handle: *obj }).collect()
+            objects
+                .iter()
+                .map(|obj| Object {
+                    handle: *obj,
+                    session: session.clone(),
+                })
+                .collect()
         };
         Ok(objects)
     }
@@ -348,10 +363,10 @@ impl Signer {
         M: Mechanism,
     {
         let signature = unsafe {
-            let sign_init = (*session.module.inner.functions)
+            let sign_init = (*session.inner.module.inner.functions)
                 .C_SignInit
                 .ok_or(ErrorKind::MissingFunction("C_SignInit"))?;
-            let sign = (*session.module.inner.functions)
+            let sign = (*session.inner.module.inner.functions)
                 .C_Sign
                 .ok_or(ErrorKind::MissingFunction("C_Sign"))?;
 
@@ -364,7 +379,7 @@ impl Signer {
             // Initialize the sign operation
             try_ck!(
                 "C_SignInit",
-                sign_init(session.handle, &mut mechanism, key.handle)
+                sign_init(session.inner.handle, &mut mechanism, key.handle)
             );
 
             // Get the size
@@ -373,7 +388,7 @@ impl Signer {
             try_ck!(
                 "C_Sign",
                 sign(
-                    session.handle,
+                    session.inner.handle,
                     data.as_ptr() as *mut u8,
                     data.len() as CK_ULONG,
                     null_ptr,
@@ -386,7 +401,7 @@ impl Signer {
             try_ck!(
                 "C_Sign",
                 sign(
-                    session.handle,
+                    session.inner.handle,
                     data.as_ptr() as *mut u8,
                     data.len() as CK_ULONG,
                     signature.as_mut_ptr(),
@@ -415,10 +430,10 @@ impl Verifier {
         M: Mechanism,
     {
         let verified = unsafe {
-            let verify_init = (*session.module.inner.functions)
+            let verify_init = (*session.inner.module.inner.functions)
                 .C_VerifyInit
                 .ok_or(ErrorKind::MissingFunction("C_VerifyInit"))?;
-            let verify = (*session.module.inner.functions)
+            let verify = (*session.inner.module.inner.functions)
                 .C_Verify
                 .ok_or(ErrorKind::MissingFunction("C_Verify"))?;
 
@@ -431,12 +446,12 @@ impl Verifier {
             // Initialize the sign operation
             try_ck!(
                 "C_VerifyInit",
-                verify_init(session.handle, &mut mechanism, key.handle)
+                verify_init(session.inner.handle, &mut mechanism, key.handle)
             );
 
             // Verify
             let rv = verify(
-                session.handle,
+                session.inner.handle,
                 data.as_ptr() as *mut u8,
                 data.len() as CK_ULONG,
                 signature.as_ptr() as *mut u8,
@@ -488,7 +503,7 @@ mod tests {
             .path("/usr/local/lib/softhsm/libsofthsm2.so")
             .initialize()
             .unwrap();
-        let mut session = module.session(595651617, SessionFlags::RW).unwrap();
+        let session = module.session(595651617, SessionFlags::RW).unwrap();
         session.login(UserType::User, "1234").unwrap();
 
         let mut template = SecretKeyTemplate::new();

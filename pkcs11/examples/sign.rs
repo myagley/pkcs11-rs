@@ -30,13 +30,8 @@ fn run() -> Result<(), Error> {
     let key = session.create_object(&template)?;
 
     // Sign and verify
-    let signature = session.sign(&key, MechanismType::Sha256Hmac, "hello".as_bytes())?;
-    let verified = session.verify(
-        &key,
-        MechanismType::Sha256Hmac,
-        "hello".as_bytes(),
-        &signature,
-    )?;
+    let signature = key.sign(MechanismType::Sha256Hmac, "hello".as_bytes())?;
+    let verified = key.verify(MechanismType::Sha256Hmac, "hello".as_bytes(), &signature)?;
     println!("signature: {}", base64::encode(&signature));
     println!("verified:  {}", verified);
     Ok(())

@@ -177,5 +177,5 @@ fn load_private_key_pkcs11<'m>(module: &'m Module, label: &str) -> io::Result<Rs
         .into_iter()
         .nth(0)
         .ok_or(error("no key found".to_string()))?;
-    Ok(RsaKey::new(session, key))
+    Ok(RsaKey::new(key))
 }

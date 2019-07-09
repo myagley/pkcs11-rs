@@ -2,7 +2,6 @@ use std::ffi::c_void;
 use std::sync;
 
 use pkcs11::object::*;
-use pkcs11::session::Session;
 use pkcs11_sys::*;
 use ring::digest::Algorithm;
 use rustls::internal::msgs::enums::SignatureAlgorithm;
@@ -49,13 +48,12 @@ fn first_in_both<T: Clone + PartialEq>(prefs: &[T], avail: &[T]) -> Option<T> {
 }
 
 pub struct RsaKey {
-    session: Session,
     key: Object,
 }
 
 impl RsaKey {
-    pub fn new(session: Session, key: Object) -> Self {
-        Self { session, key }
+    pub fn new(key: Object) -> Self {
+        Self { key }
     }
 }
 
@@ -170,8 +168,8 @@ impl Signer for RsaSigner {
         let m_hash = ring::digest::digest(self.mechanism.digest(), message);
 
         self.key
-            .session
-            .sign(&self.key.key, &self.mechanism, m_hash.as_ref())
+            .key
+            .sign(&self.mechanism, m_hash.as_ref())
             .map_err(|e| TLSError::General(format!("signing failed with {}", e)))
     }
 
