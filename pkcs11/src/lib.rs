@@ -99,6 +99,10 @@ impl ModuleBuilder {
     }
 }
 
+// This is safe because the module is initialized with CKF_OS_LOCKING_OK
+unsafe impl Send for Module {}
+unsafe impl Sync for Module {}
+
 impl Module {
     /// Cryptoki API version
     pub fn version(&self) -> Version {
@@ -262,8 +266,8 @@ impl Module {
 
     /// Opens a connection between an application and a particular token or
     /// sets up an application callback for token insertion
-    pub fn session<S: Into<SlotId>>(
-        &self,
+    pub fn session<'m, S: Into<SlotId>>(
+        &'m self,
         slot_id: S,
         mut flags: SessionFlags,
     ) -> Result<Session, Error> {
@@ -288,7 +292,7 @@ impl Module {
                     &mut handle,
                 )
             );
-            Session::new(slot_id, handle, self.functions)
+            Session::new(slot_id, self, handle)
         };
         Ok(session)
     }
