@@ -365,8 +365,6 @@ impl Signer {
                 ulParameterLen: mechanism.len(),
             };
 
-            println!("{:?}", mechanism.mechanism);
-
             // Initialize the sign operation
             try_ck!(
                 "C_SignInit",

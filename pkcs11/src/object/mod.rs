@@ -178,7 +178,10 @@ pub use hardware::HwFeatureType;
 pub use key::{
     KeyType, PrivateKeyTemplate, PublicKeyTemplate, RsaPrivateKeyTemplate, SecretKeyTemplate,
 };
-pub use mechanism::{Mechanism, MechanismFlags, MechanismInfo, MechanismType};
+pub use mechanism::{
+    Mechanism, MechanismFlags, MechanismInfo, MechanismType, RsaPkcsPssParams, MECH_RSA_PSS_SHA256,
+    MECH_RSA_PSS_SHA384, MECH_RSA_PSS_SHA512,
+};
 
 #[cfg(test)]
 mod tests {

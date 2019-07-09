@@ -58,6 +58,67 @@ impl fmt::Debug for MechanismInfo {
     }
 }
 
+#[derive(Debug)]
+pub struct RsaPkcsPssParams {
+    type_: MechanismType,
+    inner: CK_RSA_PKCS_PSS_PARAMS,
+}
+
+impl Mechanism for RsaPkcsPssParams {
+    fn r#type(&self) -> MechanismType {
+        self.type_
+    }
+
+    fn as_ptr(&self) -> *const c_void {
+        &self.inner as *const _ as *const c_void
+    }
+
+    fn len(&self) -> CK_ULONG {
+        std::mem::size_of::<CK_RSA_PKCS_PSS_PARAMS>() as CK_ULONG
+    }
+}
+
+impl<'a> Mechanism for &'a RsaPkcsPssParams {
+    fn r#type(&self) -> MechanismType {
+        self.type_
+    }
+
+    fn as_ptr(&self) -> *const c_void {
+        &self.inner as *const _ as *const c_void
+    }
+
+    fn len(&self) -> CK_ULONG {
+        std::mem::size_of::<CK_RSA_PKCS_PSS_PARAMS>() as CK_ULONG
+    }
+}
+
+pub static MECH_RSA_PSS_SHA256: RsaPkcsPssParams = RsaPkcsPssParams {
+    type_: MechanismType::RsaPkcsPss,
+    inner: CK_RSA_PKCS_PSS_PARAMS {
+        hashAlg: CKM_SHA256 as CK_MECHANISM_TYPE,
+        mgf: CKG_MGF1_SHA256 as CK_RSA_PKCS_MGF_TYPE,
+        sLen: 32,
+    },
+};
+
+pub static MECH_RSA_PSS_SHA384: RsaPkcsPssParams = RsaPkcsPssParams {
+    type_: MechanismType::RsaPkcsPss,
+    inner: CK_RSA_PKCS_PSS_PARAMS {
+        hashAlg: CKM_SHA384 as CK_MECHANISM_TYPE,
+        mgf: CKG_MGF1_SHA384 as CK_RSA_PKCS_MGF_TYPE,
+        sLen: 48,
+    },
+};
+
+pub static MECH_RSA_PSS_SHA512: RsaPkcsPssParams = RsaPkcsPssParams {
+    type_: MechanismType::RsaPkcsPss,
+    inner: CK_RSA_PKCS_PSS_PARAMS {
+        hashAlg: CKM_SHA512 as CK_MECHANISM_TYPE,
+        mgf: CKG_MGF1_SHA512 as CK_RSA_PKCS_MGF_TYPE,
+        sLen: 64,
+    },
+};
+
 /// A value that identifies a mechanism type.
 ///
 /// Mechanism types are defined with the objects and mechanism descriptions that
