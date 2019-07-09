@@ -15,6 +15,7 @@ pkcs11 = { path = "../pkcs11" }
 pkcs11-sys = { path = "../pkcs11-sys" }
 
 [dev-dependencies]
+clap = "2"
 env_logger = "0.6"
 futures = "0.1"
 hyper = "0.12"

@@ -1,5 +1,7 @@
-use std::{env, fs, io, sync};
+use std::net::ToSocketAddrs;
+use std::{fs, io, sync};
 
+use clap::{App, Arg};
 use futures::future;
 use futures::Stream;
 use hyper::rt::Future;
@@ -20,6 +22,27 @@ lazy_static! {
         .unwrap();
 }
 
+fn app() -> App<'static, 'static> {
+    App::new("server")
+        .arg(Arg::with_name("addr").value_name("ADDR").required(true))
+        .arg(
+            Arg::with_name("cert")
+                .short("c")
+                .long("cert")
+                .value_name("FILE")
+                .help("cert file")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("key")
+                .short("k")
+                .long("key")
+                .value_name("LABEL")
+                .help("pkcs11 key label")
+                .required(true),
+        )
+}
+
 fn main() {
     env_logger::init();
     // Serve an echo service over HTTPS, with proper error handling.
@@ -34,23 +57,24 @@ fn error(err: String) -> io::Error {
 }
 
 fn run_server() -> io::Result<()> {
-    // First parameter is port number (optional, defaults to 8080)
-    let port = match env::args().nth(1) {
-        Some(ref p) => p.to_owned(),
-        None => "8080".to_owned(),
-    };
-    let addr = format!("127.0.0.1:{}", port)
-        .parse()
-        .map_err(|e| error(format!("{}", e)))?;
+    let matches = app().get_matches();
+    let addr = matches
+        .value_of("addr")
+        .unwrap()
+        .to_socket_addrs()
+        .unwrap()
+        .next()
+        .unwrap();
+
+    let cert_file = matches.value_of("cert").unwrap();
+    let key_label = matches.value_of("key").unwrap();
 
     // Build TLS configuration.
     let tls_cfg = {
         // Load public certificate.
-        let certs = load_certs(
-            "/home/miyagley/Code/rust/pkcs11-rs/pkcs11-rustls/examples/certs/sample.pem",
-        )?;
+        let certs = load_certs(cert_file)?;
         // Load private key.
-        let key = load_private_key_pkcs11(&MODULE)?;
+        let key = load_private_key_pkcs11(&MODULE, &key_label)?;
         // Do not use client certificate authentication.
         let mut cfg = rustls::ServerConfig::new(rustls::NoClientAuth::new());
         // Select a certificate to use.
@@ -122,24 +146,24 @@ fn load_certs(filename: &str) -> io::Result<Vec<rustls::Certificate>> {
     pemfile::certs(&mut reader).map_err(|_| error("failed to load certificate".into()))
 }
 
-// Load private key from file.
-fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
-    // Open keyfile.
-    let keyfile = fs::File::open(filename)
-        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
-    let mut reader = io::BufReader::new(keyfile);
+// // Load private key from file.
+// fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
+//     // Open keyfile.
+//     let keyfile = fs::File::open(filename)
+//         .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
+//     let mut reader = io::BufReader::new(keyfile);
+//
+//     // Load and return a single private key.
+//     let keys = pemfile::rsa_private_keys(&mut reader)
+//         .map_err(|_| error("failed to load private key".into()))?;
+//     if keys.len() != 1 {
+//         return Err(error("expected a single private key".into()));
+//     }
+//     Ok(keys[0].clone())
+// }
 
-    // Load and return a single private key.
-    let keys = pemfile::rsa_private_keys(&mut reader)
-        .map_err(|_| error("failed to load private key".into()))?;
-    if keys.len() != 1 {
-        return Err(error("expected a single private key".into()));
-    }
-    Ok(keys[0].clone())
-}
-
 // Load private key from file.
-fn load_private_key_pkcs11(module: &'static Module) -> io::Result<RsaKey> {
+fn load_private_key_pkcs11(module: &'static Module, label: &str) -> io::Result<RsaKey> {
     // Initialize pkcs11 module and login to session
     let session = module
         .session(595651617, SessionFlags::RW)
@@ -149,7 +173,7 @@ fn load_private_key_pkcs11(module: &'static Module) -> io::Result<RsaKey> {
         .map_err(|e| error(format!("login failed with {}", e)))?;
 
     let mut template = RsaPrivateKeyTemplate::new();
-    template.label("tls2".to_string());
+    template.label(label.to_string());
     let key = session
         .find_objects(&template)
         .map_err(|e| error(format!("find objects failed with {}", e)))?
