@@ -6,7 +6,7 @@ use pkcs11_sys::*;
 use ring::digest::Algorithm;
 use rustls::internal::msgs::enums::SignatureAlgorithm;
 use rustls::sign::{CertifiedKey, Signer, SigningKey};
-use rustls::{Certificate, ResolvesServerCert};
+use rustls::{Certificate, ResolvesClientCert, ResolvesServerCert};
 use rustls::{SignatureScheme, TLSError};
 
 pub struct CertificateResolver(CertifiedKey);
@@ -15,6 +15,21 @@ impl CertificateResolver {
     pub fn new(chain: Vec<Certificate>, priv_key: RsaKey) -> Self {
         let signing_key = Box::new(RsaSigningKey::new(priv_key));
         Self(CertifiedKey::new(chain, sync::Arc::new(signing_key)))
+    }
+}
+
+impl ResolvesClientCert for CertificateResolver {
+    fn resolve(
+        &self,
+        _acceptable_issuers: &[&[u8]],
+        sigschemes: &[SignatureScheme],
+    ) -> Option<CertifiedKey> {
+        // Return key if sig scheme is supported
+        first_in_both(ALL_RSA_SCHEMES, sigschemes).map(|_| self.0.clone())
+    }
+
+    fn has_certs(&self) -> bool {
+        true
     }
 }
 
@@ -28,6 +43,8 @@ impl ResolvesServerCert for CertificateResolver {
     }
 }
 
+// TODO use the list of available mechanisms to drive this
+// list instead of a static list
 static ALL_RSA_SCHEMES: &'static [SignatureScheme] = &[
     SignatureScheme::RSA_PSS_SHA512,
     SignatureScheme::RSA_PSS_SHA384,
