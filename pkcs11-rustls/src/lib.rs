@@ -9,16 +9,16 @@ use rustls::sign::{CertifiedKey, Signer, SigningKey};
 use rustls::{Certificate, ResolvesServerCert};
 use rustls::{SignatureScheme, TLSError};
 
-pub struct Resolver(CertifiedKey);
+pub struct CertificateResolver(CertifiedKey);
 
-impl Resolver {
+impl CertificateResolver {
     pub fn new(chain: Vec<Certificate>, priv_key: RsaKey) -> Self {
         let signing_key = Box::new(RsaSigningKey::new(priv_key));
-        Resolver(CertifiedKey::new(chain, sync::Arc::new(signing_key)))
+        Self(CertifiedKey::new(chain, sync::Arc::new(signing_key)))
     }
 }
 
-impl ResolvesServerCert for Resolver {
+impl ResolvesServerCert for CertificateResolver {
     fn resolve(
         &self,
         _server_name: Option<webpki::DNSNameRef>,

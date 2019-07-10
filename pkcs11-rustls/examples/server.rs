@@ -10,7 +10,7 @@ use hyper::{Body, Method, Request, Response, Server, StatusCode};
 use pkcs11::object::*;
 use pkcs11::session::{SessionFlags, UserType};
 use pkcs11::{Module, ModuleBuilder};
-use pkcs11_rustls::{Resolver, RsaKey};
+use pkcs11_rustls::{CertificateResolver, RsaKey};
 use tokio_rustls::rustls::internal::pemfile;
 use tokio_rustls::TlsAcceptor;
 
@@ -75,7 +75,7 @@ fn run_server() -> io::Result<()> {
         // Do not use client certificate authentication.
         let mut cfg = rustls::ServerConfig::new(rustls::NoClientAuth::new());
         // Select a certificate to use.
-        cfg.cert_resolver = sync::Arc::new(Resolver::new(certs, key));
+        cfg.cert_resolver = sync::Arc::new(CertificateResolver::new(certs, key));
         // cfg.set_single_cert(certs, key)
         //     .map_err(|e| error(format!("{}", e)))?;
         sync::Arc::new(cfg)
