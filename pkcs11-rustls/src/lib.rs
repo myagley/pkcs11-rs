@@ -3,10 +3,9 @@ use std::sync;
 
 use pkcs11::object::*;
 use pkcs11_sys::*;
-use ring::digest::Algorithm;
 use rustls::internal::msgs::enums::SignatureAlgorithm;
 use rustls::sign::{CertifiedKey, Signer, SigningKey};
-use rustls::{Certificate, ResolvesServerCert};
+use rustls::{Certificate, ResolvesClientCert, ResolvesServerCert};
 use rustls::{SignatureScheme, TLSError};
 
 pub struct CertificateResolver(CertifiedKey);
@@ -15,6 +14,21 @@ impl CertificateResolver {
     pub fn new(chain: Vec<Certificate>, priv_key: RsaKey) -> Self {
         let signing_key = Box::new(RsaSigningKey::new(priv_key));
         Self(CertifiedKey::new(chain, sync::Arc::new(signing_key)))
+    }
+}
+
+impl ResolvesClientCert for CertificateResolver {
+    fn resolve(
+        &self,
+        _acceptable_issuers: &[&[u8]],
+        sigschemes: &[SignatureScheme],
+    ) -> Option<CertifiedKey> {
+        // Return key if sig scheme is supported
+        first_in_both(ALL_RSA_SCHEMES, sigschemes).map(|_| self.0.clone())
+    }
+
+    fn has_certs(&self) -> bool {
+        true
     }
 }
 
@@ -28,6 +42,8 @@ impl ResolvesServerCert for CertificateResolver {
     }
 }
 
+// TODO use the list of available mechanisms to drive this
+// list instead of a static list
 static ALL_RSA_SCHEMES: &'static [SignatureScheme] = &[
     SignatureScheme::RSA_PSS_SHA512,
     SignatureScheme::RSA_PSS_SHA384,
@@ -80,6 +96,7 @@ impl SigningKey for RsaSigningKey {
     }
 }
 
+#[derive(Debug)]
 enum RsaMechanism {
     Pkcs1Sha256,
     Pkcs1Sha384,
@@ -87,19 +104,6 @@ enum RsaMechanism {
     PssSha256,
     PssSha384,
     PssSha512,
-}
-
-impl RsaMechanism {
-    fn digest(&self) -> &'static Algorithm {
-        match self {
-            RsaMechanism::Pkcs1Sha256 => &ring::digest::SHA256,
-            RsaMechanism::Pkcs1Sha384 => &ring::digest::SHA384,
-            RsaMechanism::Pkcs1Sha512 => &ring::digest::SHA512,
-            RsaMechanism::PssSha256 => &ring::digest::SHA256,
-            RsaMechanism::PssSha384 => &ring::digest::SHA384,
-            RsaMechanism::PssSha512 => &ring::digest::SHA512,
-        }
-    }
 }
 
 impl<'a> Mechanism for &'a RsaMechanism {
@@ -165,12 +169,24 @@ impl RsaSigner {
 
 impl Signer for RsaSigner {
     fn sign(&self, message: &[u8]) -> Result<Vec<u8>, TLSError> {
-        let m_hash = ring::digest::digest(self.mechanism.digest(), message);
-
-        self.key
-            .key
-            .sign(&self.mechanism, m_hash.as_ref())
-            .map_err(|e| TLSError::General(format!("signing failed with {}", e)))
+        let signed = match self.mechanism {
+            RsaMechanism::Pkcs1Sha256 => self.key.key.sign(&self.mechanism, message),
+            RsaMechanism::Pkcs1Sha384 => self.key.key.sign(&self.mechanism, message),
+            RsaMechanism::Pkcs1Sha512 => self.key.key.sign(&self.mechanism, message),
+            RsaMechanism::PssSha256 => self.key.key.sign(
+                &self.mechanism,
+                ring::digest::digest(&ring::digest::SHA256, message).as_ref(),
+            ),
+            RsaMechanism::PssSha384 => self.key.key.sign(
+                &self.mechanism,
+                ring::digest::digest(&ring::digest::SHA384, message).as_ref(),
+            ),
+            RsaMechanism::PssSha512 => self.key.key.sign(
+                &self.mechanism,
+                ring::digest::digest(&ring::digest::SHA512, message).as_ref(),
+            ),
+        };
+        signed.map_err(|e| TLSError::General(format!("signing failed with {}", e)))
     }
 
     fn get_scheme(&self) -> SignatureScheme {
