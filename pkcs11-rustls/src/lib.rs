@@ -88,7 +88,7 @@ impl RsaSigningKey {
 impl SigningKey for RsaSigningKey {
     fn choose_scheme(&self, offered: &[SignatureScheme]) -> Option<Box<Signer>> {
         first_in_both(ALL_RSA_SCHEMES, offered)
-            .map(|scheme| RsaSigner::new(self.key.clone(), scheme))
+            .map(|scheme| RsaSigner::from_key_and_scheme(self.key.clone(), scheme))
     }
 
     fn algorithm(&self) -> SignatureAlgorithm {
@@ -148,7 +148,7 @@ struct RsaSigner {
 }
 
 impl RsaSigner {
-    fn new(key: sync::Arc<RsaKey>, scheme: SignatureScheme) -> Box<Signer> {
+    fn from_key_and_scheme(key: sync::Arc<RsaKey>, scheme: SignatureScheme) -> Box<Signer> {
         let mechanism = match scheme {
             SignatureScheme::RSA_PKCS1_SHA256 => RsaMechanism::Pkcs1Sha256,
             SignatureScheme::RSA_PKCS1_SHA384 => RsaMechanism::Pkcs1Sha384,

@@ -8,6 +8,9 @@ pub trait Mechanism {
     fn r#type(&self) -> MechanismType;
     fn as_ptr(&self) -> *const c_void;
     fn len(&self) -> CK_ULONG;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 bitflags! {
@@ -479,377 +482,423 @@ impl Mechanism for MechanismType {
 impl From<MechanismType> for CK_MECHANISM_TYPE {
     fn from(mechanism_type: MechanismType) -> CK_MECHANISM_TYPE {
         match mechanism_type {
-            MechanismType::Acti => CKM_ACTI as CK_MECHANISM_TYPE,
-            MechanismType::ActiKeyGen => CKM_ACTI_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::AesCbc => CKM_AES_CBC as CK_MECHANISM_TYPE,
-            MechanismType::AesCbcEncryptData => CKM_AES_CBC_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::AesCbcPad => CKM_AES_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::AesCcm => CKM_AES_CCM as CK_MECHANISM_TYPE,
-            MechanismType::AesCfb1 => CKM_AES_CFB1 as CK_MECHANISM_TYPE,
-            MechanismType::AesCfb8 => CKM_AES_CFB8 as CK_MECHANISM_TYPE,
-            MechanismType::AesCfb64 => CKM_AES_CFB64 as CK_MECHANISM_TYPE,
-            MechanismType::AesCfb128 => CKM_AES_CFB128 as CK_MECHANISM_TYPE,
-            MechanismType::AesCmac => CKM_AES_CMAC as CK_MECHANISM_TYPE,
-            MechanismType::AesCmacGeneral => CKM_AES_CMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::AesCtr => CKM_AES_CTR as CK_MECHANISM_TYPE,
-            MechanismType::AesCts => CKM_AES_CTS as CK_MECHANISM_TYPE,
-            MechanismType::AesEcb => CKM_AES_ECB as CK_MECHANISM_TYPE,
-            MechanismType::AesEcbEncryptData => CKM_AES_ECB_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::AesGcm => CKM_AES_GCM as CK_MECHANISM_TYPE,
-            MechanismType::AesGmac => CKM_AES_GMAC as CK_MECHANISM_TYPE,
-            MechanismType::AesKeyGen => CKM_AES_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::AesKeyWrap => CKM_AES_KEY_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::AesKeyWrapPad => CKM_AES_KEY_WRAP_PAD as CK_MECHANISM_TYPE,
-            MechanismType::AesMac => CKM_AES_MAC as CK_MECHANISM_TYPE,
-            MechanismType::AesMacGeneral => CKM_AES_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::AesOfb => CKM_AES_OFB as CK_MECHANISM_TYPE,
-            MechanismType::AesXcbcMac => CKM_AES_XCBC_MAC as CK_MECHANISM_TYPE,
-            MechanismType::AesXcbcMac96 => CKM_AES_XCBC_MAC_96 as CK_MECHANISM_TYPE,
-            MechanismType::AriaCbc => CKM_ARIA_CBC as CK_MECHANISM_TYPE,
-            MechanismType::AriaCbcEncryptData => CKM_ARIA_CBC_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::AriaCbcPad => CKM_ARIA_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::AriaEcb => CKM_ARIA_ECB as CK_MECHANISM_TYPE,
-            MechanismType::AriaEcbEncryptData => CKM_ARIA_ECB_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::AriaKeyGen => CKM_ARIA_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::AriaMac => CKM_ARIA_MAC as CK_MECHANISM_TYPE,
-            MechanismType::AriaMacGeneral => CKM_ARIA_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::BatonCbc128 => CKM_BATON_CBC128 as CK_MECHANISM_TYPE,
-            MechanismType::BatonCounter => CKM_BATON_COUNTER as CK_MECHANISM_TYPE,
-            MechanismType::BatonEcb96 => CKM_BATON_ECB96 as CK_MECHANISM_TYPE,
-            MechanismType::BatonEcb128 => CKM_BATON_ECB128 as CK_MECHANISM_TYPE,
-            MechanismType::BatonKeyGen => CKM_BATON_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::BatonShuffle => CKM_BATON_SHUFFLE as CK_MECHANISM_TYPE,
-            MechanismType::BatonWrap => CKM_BATON_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::BlowfishCbc => CKM_BLOWFISH_CBC as CK_MECHANISM_TYPE,
-            MechanismType::BlowfishCbcPad => CKM_BLOWFISH_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::BlowfishKeyGen => CKM_BLOWFISH_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::CamelliaCbc => CKM_CAMELLIA_CBC as CK_MECHANISM_TYPE,
+            MechanismType::Acti => CK_MECHANISM_TYPE::from(CKM_ACTI),
+            MechanismType::ActiKeyGen => CK_MECHANISM_TYPE::from(CKM_ACTI_KEY_GEN),
+            MechanismType::AesCbc => CK_MECHANISM_TYPE::from(CKM_AES_CBC),
+            MechanismType::AesCbcEncryptData => CK_MECHANISM_TYPE::from(CKM_AES_CBC_ENCRYPT_DATA),
+            MechanismType::AesCbcPad => CK_MECHANISM_TYPE::from(CKM_AES_CBC_PAD),
+            MechanismType::AesCcm => CK_MECHANISM_TYPE::from(CKM_AES_CCM),
+            MechanismType::AesCfb1 => CK_MECHANISM_TYPE::from(CKM_AES_CFB1),
+            MechanismType::AesCfb8 => CK_MECHANISM_TYPE::from(CKM_AES_CFB8),
+            MechanismType::AesCfb64 => CK_MECHANISM_TYPE::from(CKM_AES_CFB64),
+            MechanismType::AesCfb128 => CK_MECHANISM_TYPE::from(CKM_AES_CFB128),
+            MechanismType::AesCmac => CK_MECHANISM_TYPE::from(CKM_AES_CMAC),
+            MechanismType::AesCmacGeneral => CK_MECHANISM_TYPE::from(CKM_AES_CMAC_GENERAL),
+            MechanismType::AesCtr => CK_MECHANISM_TYPE::from(CKM_AES_CTR),
+            MechanismType::AesCts => CK_MECHANISM_TYPE::from(CKM_AES_CTS),
+            MechanismType::AesEcb => CK_MECHANISM_TYPE::from(CKM_AES_ECB),
+            MechanismType::AesEcbEncryptData => CK_MECHANISM_TYPE::from(CKM_AES_ECB_ENCRYPT_DATA),
+            MechanismType::AesGcm => CK_MECHANISM_TYPE::from(CKM_AES_GCM),
+            MechanismType::AesGmac => CK_MECHANISM_TYPE::from(CKM_AES_GMAC),
+            MechanismType::AesKeyGen => CK_MECHANISM_TYPE::from(CKM_AES_KEY_GEN),
+            MechanismType::AesKeyWrap => CK_MECHANISM_TYPE::from(CKM_AES_KEY_WRAP),
+            MechanismType::AesKeyWrapPad => CK_MECHANISM_TYPE::from(CKM_AES_KEY_WRAP_PAD),
+            MechanismType::AesMac => CK_MECHANISM_TYPE::from(CKM_AES_MAC),
+            MechanismType::AesMacGeneral => CK_MECHANISM_TYPE::from(CKM_AES_MAC_GENERAL),
+            MechanismType::AesOfb => CK_MECHANISM_TYPE::from(CKM_AES_OFB),
+            MechanismType::AesXcbcMac => CK_MECHANISM_TYPE::from(CKM_AES_XCBC_MAC),
+            MechanismType::AesXcbcMac96 => CK_MECHANISM_TYPE::from(CKM_AES_XCBC_MAC_96),
+            MechanismType::AriaCbc => CK_MECHANISM_TYPE::from(CKM_ARIA_CBC),
+            MechanismType::AriaCbcEncryptData => CK_MECHANISM_TYPE::from(CKM_ARIA_CBC_ENCRYPT_DATA),
+            MechanismType::AriaCbcPad => CK_MECHANISM_TYPE::from(CKM_ARIA_CBC_PAD),
+            MechanismType::AriaEcb => CK_MECHANISM_TYPE::from(CKM_ARIA_ECB),
+            MechanismType::AriaEcbEncryptData => CK_MECHANISM_TYPE::from(CKM_ARIA_ECB_ENCRYPT_DATA),
+            MechanismType::AriaKeyGen => CK_MECHANISM_TYPE::from(CKM_ARIA_KEY_GEN),
+            MechanismType::AriaMac => CK_MECHANISM_TYPE::from(CKM_ARIA_MAC),
+            MechanismType::AriaMacGeneral => CK_MECHANISM_TYPE::from(CKM_ARIA_MAC_GENERAL),
+            MechanismType::BatonCbc128 => CK_MECHANISM_TYPE::from(CKM_BATON_CBC128),
+            MechanismType::BatonCounter => CK_MECHANISM_TYPE::from(CKM_BATON_COUNTER),
+            MechanismType::BatonEcb96 => CK_MECHANISM_TYPE::from(CKM_BATON_ECB96),
+            MechanismType::BatonEcb128 => CK_MECHANISM_TYPE::from(CKM_BATON_ECB128),
+            MechanismType::BatonKeyGen => CK_MECHANISM_TYPE::from(CKM_BATON_KEY_GEN),
+            MechanismType::BatonShuffle => CK_MECHANISM_TYPE::from(CKM_BATON_SHUFFLE),
+            MechanismType::BatonWrap => CK_MECHANISM_TYPE::from(CKM_BATON_WRAP),
+            MechanismType::BlowfishCbc => CK_MECHANISM_TYPE::from(CKM_BLOWFISH_CBC),
+            MechanismType::BlowfishCbcPad => CK_MECHANISM_TYPE::from(CKM_BLOWFISH_CBC_PAD),
+            MechanismType::BlowfishKeyGen => CK_MECHANISM_TYPE::from(CKM_BLOWFISH_KEY_GEN),
+            MechanismType::CamelliaCbc => CK_MECHANISM_TYPE::from(CKM_CAMELLIA_CBC),
             MechanismType::CamelliaCbcEncryptData => {
-                CKM_CAMELLIA_CBC_ENCRYPT_DATA as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_CAMELLIA_CBC_ENCRYPT_DATA)
             }
-            MechanismType::CamelliaCbcPad => CKM_CAMELLIA_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::CamelliaCtr => CKM_CAMELLIA_CTR as CK_MECHANISM_TYPE,
-            MechanismType::CamelliaEcb => CKM_CAMELLIA_ECB as CK_MECHANISM_TYPE,
+            MechanismType::CamelliaCbcPad => CK_MECHANISM_TYPE::from(CKM_CAMELLIA_CBC_PAD),
+            MechanismType::CamelliaCtr => CK_MECHANISM_TYPE::from(CKM_CAMELLIA_CTR),
+            MechanismType::CamelliaEcb => CK_MECHANISM_TYPE::from(CKM_CAMELLIA_ECB),
             MechanismType::CamelliaEcbEncryptData => {
-                CKM_CAMELLIA_ECB_ENCRYPT_DATA as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_CAMELLIA_ECB_ENCRYPT_DATA)
             }
-            MechanismType::CamelliaKeyGen => CKM_CAMELLIA_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::CamelliaMac => CKM_CAMELLIA_MAC as CK_MECHANISM_TYPE,
-            MechanismType::CamelliaMacGeneral => CKM_CAMELLIA_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Cast3KeyGen => CKM_CAST3_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Cast3Ecb => CKM_CAST3_ECB as CK_MECHANISM_TYPE,
-            MechanismType::Cast3Cbc => CKM_CAST3_CBC as CK_MECHANISM_TYPE,
-            MechanismType::Cast3Mac => CKM_CAST3_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Cast3MacGeneral => CKM_CAST3_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Cast3CbcPad => CKM_CAST3_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::Cast5KeyGen => CKM_CAST5_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Cast5Ecb => CKM_CAST5_ECB as CK_MECHANISM_TYPE,
-            MechanismType::Cast5Cbc => CKM_CAST5_CBC as CK_MECHANISM_TYPE,
-            MechanismType::Cast5Mac => CKM_CAST5_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Cast5MacGeneral => CKM_CAST5_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Cast5CbcPad => CKM_CAST5_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::Cast128KeyGen => CKM_CAST128_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Cast128Ecb => CKM_CAST128_ECB as CK_MECHANISM_TYPE,
-            MechanismType::Cast128Cbc => CKM_CAST128_CBC as CK_MECHANISM_TYPE,
-            MechanismType::Cast128Mac => CKM_CAST128_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Cast128MacGeneral => CKM_CAST128_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Cast128CbcPad => CKM_CAST128_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::CastCbc => CKM_CAST_CBC as CK_MECHANISM_TYPE,
-            MechanismType::CastCbcPad => CKM_CAST_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::CastEcb => CKM_CAST_ECB as CK_MECHANISM_TYPE,
-            MechanismType::CastKeyGen => CKM_CAST_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::CastMac => CKM_CAST_MAC as CK_MECHANISM_TYPE,
-            MechanismType::CastMacGeneral => CKM_CAST_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::CdmfCbc => CKM_CDMF_CBC as CK_MECHANISM_TYPE,
-            MechanismType::CdmfCbcPad => CKM_CDMF_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::CdmfEcb => CKM_CDMF_ECB as CK_MECHANISM_TYPE,
-            MechanismType::CdmfKeyGen => CKM_CDMF_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::CdmfMac => CKM_CDMF_MAC as CK_MECHANISM_TYPE,
-            MechanismType::CdmfMacGeneral => CKM_CDMF_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::CmsSig => CKM_CMS_SIG as CK_MECHANISM_TYPE,
+            MechanismType::CamelliaKeyGen => CK_MECHANISM_TYPE::from(CKM_CAMELLIA_KEY_GEN),
+            MechanismType::CamelliaMac => CK_MECHANISM_TYPE::from(CKM_CAMELLIA_MAC),
+            MechanismType::CamelliaMacGeneral => CK_MECHANISM_TYPE::from(CKM_CAMELLIA_MAC_GENERAL),
+            MechanismType::Cast3KeyGen => CK_MECHANISM_TYPE::from(CKM_CAST3_KEY_GEN),
+            MechanismType::Cast3Ecb => CK_MECHANISM_TYPE::from(CKM_CAST3_ECB),
+            MechanismType::Cast3Cbc => CK_MECHANISM_TYPE::from(CKM_CAST3_CBC),
+            MechanismType::Cast3Mac => CK_MECHANISM_TYPE::from(CKM_CAST3_MAC),
+            MechanismType::Cast3MacGeneral => CK_MECHANISM_TYPE::from(CKM_CAST3_MAC_GENERAL),
+            MechanismType::Cast3CbcPad => CK_MECHANISM_TYPE::from(CKM_CAST3_CBC_PAD),
+            MechanismType::Cast5KeyGen => CK_MECHANISM_TYPE::from(CKM_CAST5_KEY_GEN),
+            MechanismType::Cast5Ecb => CK_MECHANISM_TYPE::from(CKM_CAST5_ECB),
+            MechanismType::Cast5Cbc => CK_MECHANISM_TYPE::from(CKM_CAST5_CBC),
+            MechanismType::Cast5Mac => CK_MECHANISM_TYPE::from(CKM_CAST5_MAC),
+            MechanismType::Cast5MacGeneral => CK_MECHANISM_TYPE::from(CKM_CAST5_MAC_GENERAL),
+            MechanismType::Cast5CbcPad => CK_MECHANISM_TYPE::from(CKM_CAST5_CBC_PAD),
+            MechanismType::Cast128KeyGen => CK_MECHANISM_TYPE::from(CKM_CAST128_KEY_GEN),
+            MechanismType::Cast128Ecb => CK_MECHANISM_TYPE::from(CKM_CAST128_ECB),
+            MechanismType::Cast128Cbc => CK_MECHANISM_TYPE::from(CKM_CAST128_CBC),
+            MechanismType::Cast128Mac => CK_MECHANISM_TYPE::from(CKM_CAST128_MAC),
+            MechanismType::Cast128MacGeneral => CK_MECHANISM_TYPE::from(CKM_CAST128_MAC_GENERAL),
+            MechanismType::Cast128CbcPad => CK_MECHANISM_TYPE::from(CKM_CAST128_CBC_PAD),
+            MechanismType::CastCbc => CK_MECHANISM_TYPE::from(CKM_CAST_CBC),
+            MechanismType::CastCbcPad => CK_MECHANISM_TYPE::from(CKM_CAST_CBC_PAD),
+            MechanismType::CastEcb => CK_MECHANISM_TYPE::from(CKM_CAST_ECB),
+            MechanismType::CastKeyGen => CK_MECHANISM_TYPE::from(CKM_CAST_KEY_GEN),
+            MechanismType::CastMac => CK_MECHANISM_TYPE::from(CKM_CAST_MAC),
+            MechanismType::CastMacGeneral => CK_MECHANISM_TYPE::from(CKM_CAST_MAC_GENERAL),
+            MechanismType::CdmfCbc => CK_MECHANISM_TYPE::from(CKM_CDMF_CBC),
+            MechanismType::CdmfCbcPad => CK_MECHANISM_TYPE::from(CKM_CDMF_CBC_PAD),
+            MechanismType::CdmfEcb => CK_MECHANISM_TYPE::from(CKM_CDMF_ECB),
+            MechanismType::CdmfKeyGen => CK_MECHANISM_TYPE::from(CKM_CDMF_KEY_GEN),
+            MechanismType::CdmfMac => CK_MECHANISM_TYPE::from(CKM_CDMF_MAC),
+            MechanismType::CdmfMacGeneral => CK_MECHANISM_TYPE::from(CKM_CDMF_MAC_GENERAL),
+            MechanismType::CmsSig => CK_MECHANISM_TYPE::from(CKM_CMS_SIG),
             MechanismType::ConcatenateBaseAndData => {
-                CKM_CONCATENATE_BASE_AND_DATA as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_CONCATENATE_BASE_AND_DATA)
             }
             MechanismType::ConcatenateBaseAndKey => {
-                CKM_CONCATENATE_BASE_AND_KEY as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_CONCATENATE_BASE_AND_KEY)
             }
             MechanismType::ConcatenateDataAndBase => {
-                CKM_CONCATENATE_DATA_AND_BASE as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_CONCATENATE_DATA_AND_BASE)
             }
-            MechanismType::Des2KeyGen => CKM_DES2_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Des3KeyGen => CKM_DES3_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Des3Ecb => CKM_DES3_ECB as CK_MECHANISM_TYPE,
-            MechanismType::Des3Cbc => CKM_DES3_CBC as CK_MECHANISM_TYPE,
-            MechanismType::Des3Mac => CKM_DES3_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Des3MacGeneral => CKM_DES3_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Des3CbcPad => CKM_DES3_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::Des3CmacGeneral => CKM_DES3_CMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Des3Cmac => CKM_DES3_CMAC as CK_MECHANISM_TYPE,
-            MechanismType::Des3EcbEncryptData => CKM_DES3_ECB_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::Des3CbcEncryptData => CKM_DES3_CBC_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::DesCbc => CKM_DES_CBC as CK_MECHANISM_TYPE,
-            MechanismType::DesCbcEncryptData => CKM_DES_CBC_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::DesCbcPad => CKM_DES_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::DesCfb8 => CKM_DES_CFB8 as CK_MECHANISM_TYPE,
-            MechanismType::DesCfb64 => CKM_DES_CFB64 as CK_MECHANISM_TYPE,
-            MechanismType::DesEcb => CKM_DES_ECB as CK_MECHANISM_TYPE,
-            MechanismType::DesEcbEncryptData => CKM_DES_ECB_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::DesKeyGen => CKM_DES_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::DesMac => CKM_DES_MAC as CK_MECHANISM_TYPE,
-            MechanismType::DesMacGeneral => CKM_DES_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::DesOfb8 => CKM_DES_OFB8 as CK_MECHANISM_TYPE,
-            MechanismType::DesOfb64 => CKM_DES_OFB64 as CK_MECHANISM_TYPE,
-            MechanismType::DhPkcsDerive => CKM_DH_PKCS_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::DhPkcsKeyPairGen => CKM_DH_PKCS_KEY_PAIR_GEN as CK_MECHANISM_TYPE,
-            MechanismType::DhPkcsParameterGen => CKM_DH_PKCS_PARAMETER_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Dsa => CKM_DSA as CK_MECHANISM_TYPE,
-            MechanismType::DsaKeyPairGen => CKM_DSA_KEY_PAIR_GEN as CK_MECHANISM_TYPE,
-            MechanismType::DsaParameterGen => CKM_DSA_PARAMETER_GEN as CK_MECHANISM_TYPE,
+            MechanismType::Des2KeyGen => CK_MECHANISM_TYPE::from(CKM_DES2_KEY_GEN),
+            MechanismType::Des3KeyGen => CK_MECHANISM_TYPE::from(CKM_DES3_KEY_GEN),
+            MechanismType::Des3Ecb => CK_MECHANISM_TYPE::from(CKM_DES3_ECB),
+            MechanismType::Des3Cbc => CK_MECHANISM_TYPE::from(CKM_DES3_CBC),
+            MechanismType::Des3Mac => CK_MECHANISM_TYPE::from(CKM_DES3_MAC),
+            MechanismType::Des3MacGeneral => CK_MECHANISM_TYPE::from(CKM_DES3_MAC_GENERAL),
+            MechanismType::Des3CbcPad => CK_MECHANISM_TYPE::from(CKM_DES3_CBC_PAD),
+            MechanismType::Des3CmacGeneral => CK_MECHANISM_TYPE::from(CKM_DES3_CMAC_GENERAL),
+            MechanismType::Des3Cmac => CK_MECHANISM_TYPE::from(CKM_DES3_CMAC),
+            MechanismType::Des3EcbEncryptData => CK_MECHANISM_TYPE::from(CKM_DES3_ECB_ENCRYPT_DATA),
+            MechanismType::Des3CbcEncryptData => CK_MECHANISM_TYPE::from(CKM_DES3_CBC_ENCRYPT_DATA),
+            MechanismType::DesCbc => CK_MECHANISM_TYPE::from(CKM_DES_CBC),
+            MechanismType::DesCbcEncryptData => CK_MECHANISM_TYPE::from(CKM_DES_CBC_ENCRYPT_DATA),
+            MechanismType::DesCbcPad => CK_MECHANISM_TYPE::from(CKM_DES_CBC_PAD),
+            MechanismType::DesCfb8 => CK_MECHANISM_TYPE::from(CKM_DES_CFB8),
+            MechanismType::DesCfb64 => CK_MECHANISM_TYPE::from(CKM_DES_CFB64),
+            MechanismType::DesEcb => CK_MECHANISM_TYPE::from(CKM_DES_ECB),
+            MechanismType::DesEcbEncryptData => CK_MECHANISM_TYPE::from(CKM_DES_ECB_ENCRYPT_DATA),
+            MechanismType::DesKeyGen => CK_MECHANISM_TYPE::from(CKM_DES_KEY_GEN),
+            MechanismType::DesMac => CK_MECHANISM_TYPE::from(CKM_DES_MAC),
+            MechanismType::DesMacGeneral => CK_MECHANISM_TYPE::from(CKM_DES_MAC_GENERAL),
+            MechanismType::DesOfb8 => CK_MECHANISM_TYPE::from(CKM_DES_OFB8),
+            MechanismType::DesOfb64 => CK_MECHANISM_TYPE::from(CKM_DES_OFB64),
+            MechanismType::DhPkcsDerive => CK_MECHANISM_TYPE::from(CKM_DH_PKCS_DERIVE),
+            MechanismType::DhPkcsKeyPairGen => CK_MECHANISM_TYPE::from(CKM_DH_PKCS_KEY_PAIR_GEN),
+            MechanismType::DhPkcsParameterGen => CK_MECHANISM_TYPE::from(CKM_DH_PKCS_PARAMETER_GEN),
+            MechanismType::Dsa => CK_MECHANISM_TYPE::from(CKM_DSA),
+            MechanismType::DsaKeyPairGen => CK_MECHANISM_TYPE::from(CKM_DSA_KEY_PAIR_GEN),
+            MechanismType::DsaParameterGen => CK_MECHANISM_TYPE::from(CKM_DSA_PARAMETER_GEN),
             MechanismType::DsaProbablisticParameterGen => {
-                CKM_DSA_PROBABLISTIC_PARAMETER_GEN as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_DSA_PROBABLISTIC_PARAMETER_GEN)
             }
-            MechanismType::DsaSha1 => CKM_DSA_SHA1 as CK_MECHANISM_TYPE,
-            MechanismType::DsaSha224 => CKM_DSA_SHA224 as CK_MECHANISM_TYPE,
-            MechanismType::DsaSha256 => CKM_DSA_SHA256 as CK_MECHANISM_TYPE,
-            MechanismType::DsaSha384 => CKM_DSA_SHA384 as CK_MECHANISM_TYPE,
-            MechanismType::DsaSha512 => CKM_DSA_SHA512 as CK_MECHANISM_TYPE,
+            MechanismType::DsaSha1 => CK_MECHANISM_TYPE::from(CKM_DSA_SHA1),
+            MechanismType::DsaSha224 => CK_MECHANISM_TYPE::from(CKM_DSA_SHA224),
+            MechanismType::DsaSha256 => CK_MECHANISM_TYPE::from(CKM_DSA_SHA256),
+            MechanismType::DsaSha384 => CK_MECHANISM_TYPE::from(CKM_DSA_SHA384),
+            MechanismType::DsaSha512 => CK_MECHANISM_TYPE::from(CKM_DSA_SHA512),
             MechanismType::DsaShaweTaylorParameterGen => {
-                CKM_DSA_SHAWE_TAYLOR_PARAMETER_GEN as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_DSA_SHAWE_TAYLOR_PARAMETER_GEN)
             }
-            MechanismType::Ecdh1Derive => CKM_ECDH1_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::Ecdh1CofactorDerive => CKM_ECDH1_COFACTOR_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::EcdhAesKeyWrap => CKM_ECDH_AES_KEY_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::Ecdsa => CKM_ECDSA as CK_MECHANISM_TYPE,
-            MechanismType::EcdsaKeyPairGen => CKM_ECDSA_KEY_PAIR_GEN as CK_MECHANISM_TYPE,
-            MechanismType::EcdsaSha1 => CKM_ECDSA_SHA1 as CK_MECHANISM_TYPE,
-            MechanismType::EcdsaSha224 => CKM_ECDSA_SHA224 as CK_MECHANISM_TYPE,
-            MechanismType::EcdsaSha256 => CKM_ECDSA_SHA256 as CK_MECHANISM_TYPE,
-            MechanismType::EcdsaSha384 => CKM_ECDSA_SHA384 as CK_MECHANISM_TYPE,
-            MechanismType::EcdsaSha512 => CKM_ECDSA_SHA512 as CK_MECHANISM_TYPE,
-            MechanismType::EcmqvDerive => CKM_ECMQV_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::EcKeyPairGen => CKM_EC_KEY_PAIR_GEN as CK_MECHANISM_TYPE,
-            MechanismType::ExtractKeyFromKey => CKM_EXTRACT_KEY_FROM_KEY as CK_MECHANISM_TYPE,
-            MechanismType::Fasthash => CKM_FASTHASH as CK_MECHANISM_TYPE,
-            MechanismType::FortezzaTimestamp => CKM_FORTEZZA_TIMESTAMP as CK_MECHANISM_TYPE,
-            MechanismType::GenericSecretKeyGen => CKM_GENERIC_SECRET_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Gost28147KeyGen => CKM_GOST28147_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Gost28147Ecb => CKM_GOST28147_ECB as CK_MECHANISM_TYPE,
-            MechanismType::Gost28147 => CKM_GOST28147 as CK_MECHANISM_TYPE,
-            MechanismType::Gost28147Mac => CKM_GOST28147_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Gost28147KeyWrap => CKM_GOST28147_KEY_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::Gostr3410KeyPairGen => CKM_GOSTR3410_KEY_PAIR_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Gostr3410 => CKM_GOSTR3410 as CK_MECHANISM_TYPE,
-            MechanismType::Gostr3410KeyWrap => CKM_GOSTR3410_KEY_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::Gostr3410Derive => CKM_GOSTR3410_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::Gostr3411 => CKM_GOSTR3411 as CK_MECHANISM_TYPE,
-            MechanismType::Gostr3411Hmac => CKM_GOSTR3411_HMAC as CK_MECHANISM_TYPE,
+            MechanismType::Ecdh1Derive => CK_MECHANISM_TYPE::from(CKM_ECDH1_DERIVE),
+            MechanismType::Ecdh1CofactorDerive => {
+                CK_MECHANISM_TYPE::from(CKM_ECDH1_COFACTOR_DERIVE)
+            }
+            MechanismType::EcdhAesKeyWrap => CK_MECHANISM_TYPE::from(CKM_ECDH_AES_KEY_WRAP),
+            MechanismType::Ecdsa => CK_MECHANISM_TYPE::from(CKM_ECDSA),
+            MechanismType::EcdsaKeyPairGen => CK_MECHANISM_TYPE::from(CKM_ECDSA_KEY_PAIR_GEN),
+            MechanismType::EcdsaSha1 => CK_MECHANISM_TYPE::from(CKM_ECDSA_SHA1),
+            MechanismType::EcdsaSha224 => CK_MECHANISM_TYPE::from(CKM_ECDSA_SHA224),
+            MechanismType::EcdsaSha256 => CK_MECHANISM_TYPE::from(CKM_ECDSA_SHA256),
+            MechanismType::EcdsaSha384 => CK_MECHANISM_TYPE::from(CKM_ECDSA_SHA384),
+            MechanismType::EcdsaSha512 => CK_MECHANISM_TYPE::from(CKM_ECDSA_SHA512),
+            MechanismType::EcmqvDerive => CK_MECHANISM_TYPE::from(CKM_ECMQV_DERIVE),
+            MechanismType::EcKeyPairGen => CK_MECHANISM_TYPE::from(CKM_EC_KEY_PAIR_GEN),
+            MechanismType::ExtractKeyFromKey => CK_MECHANISM_TYPE::from(CKM_EXTRACT_KEY_FROM_KEY),
+            MechanismType::Fasthash => CK_MECHANISM_TYPE::from(CKM_FASTHASH),
+            MechanismType::FortezzaTimestamp => CK_MECHANISM_TYPE::from(CKM_FORTEZZA_TIMESTAMP),
+            MechanismType::GenericSecretKeyGen => {
+                CK_MECHANISM_TYPE::from(CKM_GENERIC_SECRET_KEY_GEN)
+            }
+            MechanismType::Gost28147KeyGen => CK_MECHANISM_TYPE::from(CKM_GOST28147_KEY_GEN),
+            MechanismType::Gost28147Ecb => CK_MECHANISM_TYPE::from(CKM_GOST28147_ECB),
+            MechanismType::Gost28147 => CK_MECHANISM_TYPE::from(CKM_GOST28147),
+            MechanismType::Gost28147Mac => CK_MECHANISM_TYPE::from(CKM_GOST28147_MAC),
+            MechanismType::Gost28147KeyWrap => CK_MECHANISM_TYPE::from(CKM_GOST28147_KEY_WRAP),
+            MechanismType::Gostr3410KeyPairGen => {
+                CK_MECHANISM_TYPE::from(CKM_GOSTR3410_KEY_PAIR_GEN)
+            }
+            MechanismType::Gostr3410 => CK_MECHANISM_TYPE::from(CKM_GOSTR3410),
+            MechanismType::Gostr3410KeyWrap => CK_MECHANISM_TYPE::from(CKM_GOSTR3410_KEY_WRAP),
+            MechanismType::Gostr3410Derive => CK_MECHANISM_TYPE::from(CKM_GOSTR3410_DERIVE),
+            MechanismType::Gostr3411 => CK_MECHANISM_TYPE::from(CKM_GOSTR3411),
+            MechanismType::Gostr3411Hmac => CK_MECHANISM_TYPE::from(CKM_GOSTR3411_HMAC),
             MechanismType::Gostr3410WithGostr3411 => {
-                CKM_GOSTR3410_WITH_GOSTR3411 as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_GOSTR3410_WITH_GOSTR3411)
             }
-            MechanismType::Hotp => CKM_HOTP as CK_MECHANISM_TYPE,
-            MechanismType::HotpKeyGen => CKM_HOTP_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::IdeaCbc => CKM_IDEA_CBC as CK_MECHANISM_TYPE,
-            MechanismType::IdeaCbcPad => CKM_IDEA_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::IdeaEcb => CKM_IDEA_ECB as CK_MECHANISM_TYPE,
-            MechanismType::IdeaKeyGen => CKM_IDEA_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::IdeaMac => CKM_IDEA_MAC as CK_MECHANISM_TYPE,
-            MechanismType::IdeaMacGeneral => CKM_IDEA_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::JuniperCbc128 => CKM_JUNIPER_CBC128 as CK_MECHANISM_TYPE,
-            MechanismType::JuniperCounter => CKM_JUNIPER_COUNTER as CK_MECHANISM_TYPE,
-            MechanismType::JuniperEcb128 => CKM_JUNIPER_ECB128 as CK_MECHANISM_TYPE,
-            MechanismType::JuniperKeyGen => CKM_JUNIPER_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::JuniperShuffle => CKM_JUNIPER_SHUFFLE as CK_MECHANISM_TYPE,
-            MechanismType::JuniperWrap => CKM_JUNIPER_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::KeaDerive => CKM_KEA_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::KeaKeyDerive => CKM_KEA_KEY_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::KeaKeyPairGen => CKM_KEA_KEY_PAIR_GEN as CK_MECHANISM_TYPE,
-            MechanismType::KeyWrapLynks => CKM_KEY_WRAP_LYNKS as CK_MECHANISM_TYPE,
-            MechanismType::KeyWrapSetOaep => CKM_KEY_WRAP_SET_OAEP as CK_MECHANISM_TYPE,
-            MechanismType::KipDerive => CKM_KIP_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::KipMac => CKM_KIP_MAC as CK_MECHANISM_TYPE,
-            MechanismType::KipWrap => CKM_KIP_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::Md2RsaPkcs => CKM_MD2_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::Md2 => CKM_MD2 as CK_MECHANISM_TYPE,
-            MechanismType::Md2Hmac => CKM_MD2_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Md2HmacGeneral => CKM_MD2_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Md2KeyDerivation => CKM_MD2_KEY_DERIVATION as CK_MECHANISM_TYPE,
-            MechanismType::Md5RsaPkcs => CKM_MD5_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::Md5 => CKM_MD5 as CK_MECHANISM_TYPE,
-            MechanismType::Md5Hmac => CKM_MD5_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Md5HmacGeneral => CKM_MD5_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Md5KeyDerivation => CKM_MD5_KEY_DERIVATION as CK_MECHANISM_TYPE,
-            MechanismType::PbaSha1WithSha1Hmac => CKM_PBA_SHA1_WITH_SHA1_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::PbeMd2DesCbc => CKM_PBE_MD2_DES_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeMd5DesCbc => CKM_PBE_MD5_DES_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeMd5CastCbc => CKM_PBE_MD5_CAST_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeMd5Cast3Cbc => CKM_PBE_MD5_CAST3_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeMd5Cast5Cbc => CKM_PBE_MD5_CAST5_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeMd5Cast128Cbc => CKM_PBE_MD5_CAST128_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeSha1Cast5Cbc => CKM_PBE_SHA1_CAST5_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeSha1Cast128Cbc => CKM_PBE_SHA1_CAST128_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeSha1Des2EdeCbc => CKM_PBE_SHA1_DES2_EDE_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeSha1Des3EdeCbc => CKM_PBE_SHA1_DES3_EDE_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeSha1Rc2_40Cbc => CKM_PBE_SHA1_RC2_40_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeSha1Rc2_128Cbc => CKM_PBE_SHA1_RC2_128_CBC as CK_MECHANISM_TYPE,
-            MechanismType::PbeSha1Rc4_40 => CKM_PBE_SHA1_RC4_40 as CK_MECHANISM_TYPE,
-            MechanismType::PbeSha1Rc4_128 => CKM_PBE_SHA1_RC4_128 as CK_MECHANISM_TYPE,
-            MechanismType::Pkcs5Pbkd2 => CKM_PKCS5_PBKD2 as CK_MECHANISM_TYPE,
-            MechanismType::Rc2KeyGen => CKM_RC2_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Rc2Ecb => CKM_RC2_ECB as CK_MECHANISM_TYPE,
-            MechanismType::Rc2Cbc => CKM_RC2_CBC as CK_MECHANISM_TYPE,
-            MechanismType::Rc2Mac => CKM_RC2_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Rc2MacGeneral => CKM_RC2_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Rc2CbcPad => CKM_RC2_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::Rc4KeyGen => CKM_RC4_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Rc4 => CKM_RC4 as CK_MECHANISM_TYPE,
-            MechanismType::Rc5KeyGen => CKM_RC5_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Rc5Ecb => CKM_RC5_ECB as CK_MECHANISM_TYPE,
-            MechanismType::Rc5Cbc => CKM_RC5_CBC as CK_MECHANISM_TYPE,
-            MechanismType::Rc5Mac => CKM_RC5_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Rc5MacGeneral => CKM_RC5_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Rrc5CbcPad => CKM_RC5_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::Ripemd128RsaPkcs => CKM_RIPEMD128_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::Ripemd128 => CKM_RIPEMD128 as CK_MECHANISM_TYPE,
-            MechanismType::Ripemd128Hmac => CKM_RIPEMD128_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Ripemd128HmacGeneral => CKM_RIPEMD128_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Ripemd160RsaPkcs => CKM_RIPEMD160_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::Ripemd160 => CKM_RIPEMD160 as CK_MECHANISM_TYPE,
-            MechanismType::Ripemd160Hmac => CKM_RIPEMD160_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Ripemd160HmacGeneral => CKM_RIPEMD160_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Rsa9796 => CKM_RSA_9796 as CK_MECHANISM_TYPE,
-            MechanismType::RsaAesKeyWrap => CKM_RSA_AES_KEY_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::RsaPkcs => CKM_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::RsaPkcsKeyPairGen => CKM_RSA_PKCS_KEY_PAIR_GEN as CK_MECHANISM_TYPE,
-            MechanismType::RsaPkcsOaep => CKM_RSA_PKCS_OAEP as CK_MECHANISM_TYPE,
-            MechanismType::RsaPkcsOaepTpm11 => CKM_RSA_PKCS_OAEP_TPM_1_1 as CK_MECHANISM_TYPE,
-            MechanismType::RsaPkcsPss => CKM_RSA_PKCS_PSS as CK_MECHANISM_TYPE,
-            MechanismType::RsaPkcsTpm11 => CKM_RSA_PKCS_TPM_1_1 as CK_MECHANISM_TYPE,
-            MechanismType::RsaX9_31KeyPairGen => CKM_RSA_X9_31_KEY_PAIR_GEN as CK_MECHANISM_TYPE,
-            MechanismType::RsaX9_31 => CKM_RSA_X9_31 as CK_MECHANISM_TYPE,
-            MechanismType::RsaX509 => CKM_RSA_X_509 as CK_MECHANISM_TYPE,
-            MechanismType::Securid => CKM_SECURID as CK_MECHANISM_TYPE,
-            MechanismType::SecuridKeyGen => CKM_SECURID_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::SeedCbc => CKM_SEED_CBC as CK_MECHANISM_TYPE,
-            MechanismType::SeedCbcEncryptData => CKM_SEED_CBC_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::SeedCbcPad => CKM_SEED_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::SeedEcb => CKM_SEED_ECB as CK_MECHANISM_TYPE,
-            MechanismType::SeedEcbEncryptData => CKM_SEED_ECB_ENCRYPT_DATA as CK_MECHANISM_TYPE,
-            MechanismType::SeedKeyGen => CKM_SEED_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::SeedMac => CKM_SEED_MAC as CK_MECHANISM_TYPE,
-            MechanismType::SeedMacGeneral => CKM_SEED_MAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Sha1RsaPkcs => CKM_SHA1_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::Sha1RsaPkcsPss => CKM_SHA1_RSA_PKCS_PSS as CK_MECHANISM_TYPE,
-            MechanismType::Sha1KeyDerivation => CKM_SHA1_KEY_DERIVATION as CK_MECHANISM_TYPE,
-            MechanismType::Sha224RsaPkcs => CKM_SHA224_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::Sha224RsaPkcsPss => CKM_SHA224_RSA_PKCS_PSS as CK_MECHANISM_TYPE,
-            MechanismType::Sha224 => CKM_SHA224 as CK_MECHANISM_TYPE,
-            MechanismType::Sha224Hmac => CKM_SHA224_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Sha224HmacGeneral => CKM_SHA224_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Sha224KeyDerivation => CKM_SHA224_KEY_DERIVATION as CK_MECHANISM_TYPE,
-            MechanismType::Sha256RsaPkcs => CKM_SHA256_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::Sha256RsaPkcsPss => CKM_SHA256_RSA_PKCS_PSS as CK_MECHANISM_TYPE,
-            MechanismType::Sha256 => CKM_SHA256 as CK_MECHANISM_TYPE,
-            MechanismType::Sha256Hmac => CKM_SHA256_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Sha256HmacGeneral => CKM_SHA256_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Sha256KeyDerivation => CKM_SHA256_KEY_DERIVATION as CK_MECHANISM_TYPE,
-            MechanismType::Sha384RsaPkcs => CKM_SHA384_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::Sha384RsaPkcsPss => CKM_SHA384_RSA_PKCS_PSS as CK_MECHANISM_TYPE,
-            MechanismType::Sha384 => CKM_SHA384 as CK_MECHANISM_TYPE,
-            MechanismType::Sha384Hmac => CKM_SHA384_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Sha384HmacGeneral => CKM_SHA384_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Sha384KeyDerivation => CKM_SHA384_KEY_DERIVATION as CK_MECHANISM_TYPE,
-            MechanismType::Sha512RsaPkcs => CKM_SHA512_RSA_PKCS as CK_MECHANISM_TYPE,
-            MechanismType::Sha512RsaPkcsPss => CKM_SHA512_RSA_PKCS_PSS as CK_MECHANISM_TYPE,
-            MechanismType::Sha512T => CKM_SHA512_T as CK_MECHANISM_TYPE,
-            MechanismType::Sha512THmac => CKM_SHA512_T_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Sha512THmacGeneral => CKM_SHA512_T_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Sha512TKeyDerivation => CKM_SHA512_T_KEY_DERIVATION as CK_MECHANISM_TYPE,
-            MechanismType::Sha512 => CKM_SHA512 as CK_MECHANISM_TYPE,
-            MechanismType::Sha512Hmac => CKM_SHA512_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Sha512HmacGeneral => CKM_SHA512_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::Sha512KeyDerivation => CKM_SHA512_KEY_DERIVATION as CK_MECHANISM_TYPE,
-            MechanismType::Sha1RsaX9_31 => CKM_SHA1_RSA_X9_31 as CK_MECHANISM_TYPE,
-            MechanismType::Sha512_224 => CKM_SHA512_224 as CK_MECHANISM_TYPE,
-            MechanismType::Sha512_224Hmac => CKM_SHA512_224_HMAC as CK_MECHANISM_TYPE,
+            MechanismType::Hotp => CK_MECHANISM_TYPE::from(CKM_HOTP),
+            MechanismType::HotpKeyGen => CK_MECHANISM_TYPE::from(CKM_HOTP_KEY_GEN),
+            MechanismType::IdeaCbc => CK_MECHANISM_TYPE::from(CKM_IDEA_CBC),
+            MechanismType::IdeaCbcPad => CK_MECHANISM_TYPE::from(CKM_IDEA_CBC_PAD),
+            MechanismType::IdeaEcb => CK_MECHANISM_TYPE::from(CKM_IDEA_ECB),
+            MechanismType::IdeaKeyGen => CK_MECHANISM_TYPE::from(CKM_IDEA_KEY_GEN),
+            MechanismType::IdeaMac => CK_MECHANISM_TYPE::from(CKM_IDEA_MAC),
+            MechanismType::IdeaMacGeneral => CK_MECHANISM_TYPE::from(CKM_IDEA_MAC_GENERAL),
+            MechanismType::JuniperCbc128 => CK_MECHANISM_TYPE::from(CKM_JUNIPER_CBC128),
+            MechanismType::JuniperCounter => CK_MECHANISM_TYPE::from(CKM_JUNIPER_COUNTER),
+            MechanismType::JuniperEcb128 => CK_MECHANISM_TYPE::from(CKM_JUNIPER_ECB128),
+            MechanismType::JuniperKeyGen => CK_MECHANISM_TYPE::from(CKM_JUNIPER_KEY_GEN),
+            MechanismType::JuniperShuffle => CK_MECHANISM_TYPE::from(CKM_JUNIPER_SHUFFLE),
+            MechanismType::JuniperWrap => CK_MECHANISM_TYPE::from(CKM_JUNIPER_WRAP),
+            MechanismType::KeaDerive => CK_MECHANISM_TYPE::from(CKM_KEA_DERIVE),
+            MechanismType::KeaKeyDerive => CK_MECHANISM_TYPE::from(CKM_KEA_KEY_DERIVE),
+            MechanismType::KeaKeyPairGen => CK_MECHANISM_TYPE::from(CKM_KEA_KEY_PAIR_GEN),
+            MechanismType::KeyWrapLynks => CK_MECHANISM_TYPE::from(CKM_KEY_WRAP_LYNKS),
+            MechanismType::KeyWrapSetOaep => CK_MECHANISM_TYPE::from(CKM_KEY_WRAP_SET_OAEP),
+            MechanismType::KipDerive => CK_MECHANISM_TYPE::from(CKM_KIP_DERIVE),
+            MechanismType::KipMac => CK_MECHANISM_TYPE::from(CKM_KIP_MAC),
+            MechanismType::KipWrap => CK_MECHANISM_TYPE::from(CKM_KIP_WRAP),
+            MechanismType::Md2RsaPkcs => CK_MECHANISM_TYPE::from(CKM_MD2_RSA_PKCS),
+            MechanismType::Md2 => CK_MECHANISM_TYPE::from(CKM_MD2),
+            MechanismType::Md2Hmac => CK_MECHANISM_TYPE::from(CKM_MD2_HMAC),
+            MechanismType::Md2HmacGeneral => CK_MECHANISM_TYPE::from(CKM_MD2_HMAC_GENERAL),
+            MechanismType::Md2KeyDerivation => CK_MECHANISM_TYPE::from(CKM_MD2_KEY_DERIVATION),
+            MechanismType::Md5RsaPkcs => CK_MECHANISM_TYPE::from(CKM_MD5_RSA_PKCS),
+            MechanismType::Md5 => CK_MECHANISM_TYPE::from(CKM_MD5),
+            MechanismType::Md5Hmac => CK_MECHANISM_TYPE::from(CKM_MD5_HMAC),
+            MechanismType::Md5HmacGeneral => CK_MECHANISM_TYPE::from(CKM_MD5_HMAC_GENERAL),
+            MechanismType::Md5KeyDerivation => CK_MECHANISM_TYPE::from(CKM_MD5_KEY_DERIVATION),
+            MechanismType::PbaSha1WithSha1Hmac => {
+                CK_MECHANISM_TYPE::from(CKM_PBA_SHA1_WITH_SHA1_HMAC)
+            }
+            MechanismType::PbeMd2DesCbc => CK_MECHANISM_TYPE::from(CKM_PBE_MD2_DES_CBC),
+            MechanismType::PbeMd5DesCbc => CK_MECHANISM_TYPE::from(CKM_PBE_MD5_DES_CBC),
+            MechanismType::PbeMd5CastCbc => CK_MECHANISM_TYPE::from(CKM_PBE_MD5_CAST_CBC),
+            MechanismType::PbeMd5Cast3Cbc => CK_MECHANISM_TYPE::from(CKM_PBE_MD5_CAST3_CBC),
+            MechanismType::PbeMd5Cast5Cbc => CK_MECHANISM_TYPE::from(CKM_PBE_MD5_CAST5_CBC),
+            MechanismType::PbeMd5Cast128Cbc => CK_MECHANISM_TYPE::from(CKM_PBE_MD5_CAST128_CBC),
+            MechanismType::PbeSha1Cast5Cbc => CK_MECHANISM_TYPE::from(CKM_PBE_SHA1_CAST5_CBC),
+            MechanismType::PbeSha1Cast128Cbc => CK_MECHANISM_TYPE::from(CKM_PBE_SHA1_CAST128_CBC),
+            MechanismType::PbeSha1Des2EdeCbc => CK_MECHANISM_TYPE::from(CKM_PBE_SHA1_DES2_EDE_CBC),
+            MechanismType::PbeSha1Des3EdeCbc => CK_MECHANISM_TYPE::from(CKM_PBE_SHA1_DES3_EDE_CBC),
+            MechanismType::PbeSha1Rc2_40Cbc => CK_MECHANISM_TYPE::from(CKM_PBE_SHA1_RC2_40_CBC),
+            MechanismType::PbeSha1Rc2_128Cbc => CK_MECHANISM_TYPE::from(CKM_PBE_SHA1_RC2_128_CBC),
+            MechanismType::PbeSha1Rc4_40 => CK_MECHANISM_TYPE::from(CKM_PBE_SHA1_RC4_40),
+            MechanismType::PbeSha1Rc4_128 => CK_MECHANISM_TYPE::from(CKM_PBE_SHA1_RC4_128),
+            MechanismType::Pkcs5Pbkd2 => CK_MECHANISM_TYPE::from(CKM_PKCS5_PBKD2),
+            MechanismType::Rc2KeyGen => CK_MECHANISM_TYPE::from(CKM_RC2_KEY_GEN),
+            MechanismType::Rc2Ecb => CK_MECHANISM_TYPE::from(CKM_RC2_ECB),
+            MechanismType::Rc2Cbc => CK_MECHANISM_TYPE::from(CKM_RC2_CBC),
+            MechanismType::Rc2Mac => CK_MECHANISM_TYPE::from(CKM_RC2_MAC),
+            MechanismType::Rc2MacGeneral => CK_MECHANISM_TYPE::from(CKM_RC2_MAC_GENERAL),
+            MechanismType::Rc2CbcPad => CK_MECHANISM_TYPE::from(CKM_RC2_CBC_PAD),
+            MechanismType::Rc4KeyGen => CK_MECHANISM_TYPE::from(CKM_RC4_KEY_GEN),
+            MechanismType::Rc4 => CK_MECHANISM_TYPE::from(CKM_RC4),
+            MechanismType::Rc5KeyGen => CK_MECHANISM_TYPE::from(CKM_RC5_KEY_GEN),
+            MechanismType::Rc5Ecb => CK_MECHANISM_TYPE::from(CKM_RC5_ECB),
+            MechanismType::Rc5Cbc => CK_MECHANISM_TYPE::from(CKM_RC5_CBC),
+            MechanismType::Rc5Mac => CK_MECHANISM_TYPE::from(CKM_RC5_MAC),
+            MechanismType::Rc5MacGeneral => CK_MECHANISM_TYPE::from(CKM_RC5_MAC_GENERAL),
+            MechanismType::Rrc5CbcPad => CK_MECHANISM_TYPE::from(CKM_RC5_CBC_PAD),
+            MechanismType::Ripemd128RsaPkcs => CK_MECHANISM_TYPE::from(CKM_RIPEMD128_RSA_PKCS),
+            MechanismType::Ripemd128 => CK_MECHANISM_TYPE::from(CKM_RIPEMD128),
+            MechanismType::Ripemd128Hmac => CK_MECHANISM_TYPE::from(CKM_RIPEMD128_HMAC),
+            MechanismType::Ripemd128HmacGeneral => {
+                CK_MECHANISM_TYPE::from(CKM_RIPEMD128_HMAC_GENERAL)
+            }
+            MechanismType::Ripemd160RsaPkcs => CK_MECHANISM_TYPE::from(CKM_RIPEMD160_RSA_PKCS),
+            MechanismType::Ripemd160 => CK_MECHANISM_TYPE::from(CKM_RIPEMD160),
+            MechanismType::Ripemd160Hmac => CK_MECHANISM_TYPE::from(CKM_RIPEMD160_HMAC),
+            MechanismType::Ripemd160HmacGeneral => {
+                CK_MECHANISM_TYPE::from(CKM_RIPEMD160_HMAC_GENERAL)
+            }
+            MechanismType::Rsa9796 => CK_MECHANISM_TYPE::from(CKM_RSA_9796),
+            MechanismType::RsaAesKeyWrap => CK_MECHANISM_TYPE::from(CKM_RSA_AES_KEY_WRAP),
+            MechanismType::RsaPkcs => CK_MECHANISM_TYPE::from(CKM_RSA_PKCS),
+            MechanismType::RsaPkcsKeyPairGen => CK_MECHANISM_TYPE::from(CKM_RSA_PKCS_KEY_PAIR_GEN),
+            MechanismType::RsaPkcsOaep => CK_MECHANISM_TYPE::from(CKM_RSA_PKCS_OAEP),
+            MechanismType::RsaPkcsOaepTpm11 => CK_MECHANISM_TYPE::from(CKM_RSA_PKCS_OAEP_TPM_1_1),
+            MechanismType::RsaPkcsPss => CK_MECHANISM_TYPE::from(CKM_RSA_PKCS_PSS),
+            MechanismType::RsaPkcsTpm11 => CK_MECHANISM_TYPE::from(CKM_RSA_PKCS_TPM_1_1),
+            MechanismType::RsaX9_31KeyPairGen => {
+                CK_MECHANISM_TYPE::from(CKM_RSA_X9_31_KEY_PAIR_GEN)
+            }
+            MechanismType::RsaX9_31 => CK_MECHANISM_TYPE::from(CKM_RSA_X9_31),
+            MechanismType::RsaX509 => CK_MECHANISM_TYPE::from(CKM_RSA_X_509),
+            MechanismType::Securid => CK_MECHANISM_TYPE::from(CKM_SECURID),
+            MechanismType::SecuridKeyGen => CK_MECHANISM_TYPE::from(CKM_SECURID_KEY_GEN),
+            MechanismType::SeedCbc => CK_MECHANISM_TYPE::from(CKM_SEED_CBC),
+            MechanismType::SeedCbcEncryptData => CK_MECHANISM_TYPE::from(CKM_SEED_CBC_ENCRYPT_DATA),
+            MechanismType::SeedCbcPad => CK_MECHANISM_TYPE::from(CKM_SEED_CBC_PAD),
+            MechanismType::SeedEcb => CK_MECHANISM_TYPE::from(CKM_SEED_ECB),
+            MechanismType::SeedEcbEncryptData => CK_MECHANISM_TYPE::from(CKM_SEED_ECB_ENCRYPT_DATA),
+            MechanismType::SeedKeyGen => CK_MECHANISM_TYPE::from(CKM_SEED_KEY_GEN),
+            MechanismType::SeedMac => CK_MECHANISM_TYPE::from(CKM_SEED_MAC),
+            MechanismType::SeedMacGeneral => CK_MECHANISM_TYPE::from(CKM_SEED_MAC_GENERAL),
+            MechanismType::Sha1RsaPkcs => CK_MECHANISM_TYPE::from(CKM_SHA1_RSA_PKCS),
+            MechanismType::Sha1RsaPkcsPss => CK_MECHANISM_TYPE::from(CKM_SHA1_RSA_PKCS_PSS),
+            MechanismType::Sha1KeyDerivation => CK_MECHANISM_TYPE::from(CKM_SHA1_KEY_DERIVATION),
+            MechanismType::Sha224RsaPkcs => CK_MECHANISM_TYPE::from(CKM_SHA224_RSA_PKCS),
+            MechanismType::Sha224RsaPkcsPss => CK_MECHANISM_TYPE::from(CKM_SHA224_RSA_PKCS_PSS),
+            MechanismType::Sha224 => CK_MECHANISM_TYPE::from(CKM_SHA224),
+            MechanismType::Sha224Hmac => CK_MECHANISM_TYPE::from(CKM_SHA224_HMAC),
+            MechanismType::Sha224HmacGeneral => CK_MECHANISM_TYPE::from(CKM_SHA224_HMAC_GENERAL),
+            MechanismType::Sha224KeyDerivation => {
+                CK_MECHANISM_TYPE::from(CKM_SHA224_KEY_DERIVATION)
+            }
+            MechanismType::Sha256RsaPkcs => CK_MECHANISM_TYPE::from(CKM_SHA256_RSA_PKCS),
+            MechanismType::Sha256RsaPkcsPss => CK_MECHANISM_TYPE::from(CKM_SHA256_RSA_PKCS_PSS),
+            MechanismType::Sha256 => CK_MECHANISM_TYPE::from(CKM_SHA256),
+            MechanismType::Sha256Hmac => CK_MECHANISM_TYPE::from(CKM_SHA256_HMAC),
+            MechanismType::Sha256HmacGeneral => CK_MECHANISM_TYPE::from(CKM_SHA256_HMAC_GENERAL),
+            MechanismType::Sha256KeyDerivation => {
+                CK_MECHANISM_TYPE::from(CKM_SHA256_KEY_DERIVATION)
+            }
+            MechanismType::Sha384RsaPkcs => CK_MECHANISM_TYPE::from(CKM_SHA384_RSA_PKCS),
+            MechanismType::Sha384RsaPkcsPss => CK_MECHANISM_TYPE::from(CKM_SHA384_RSA_PKCS_PSS),
+            MechanismType::Sha384 => CK_MECHANISM_TYPE::from(CKM_SHA384),
+            MechanismType::Sha384Hmac => CK_MECHANISM_TYPE::from(CKM_SHA384_HMAC),
+            MechanismType::Sha384HmacGeneral => CK_MECHANISM_TYPE::from(CKM_SHA384_HMAC_GENERAL),
+            MechanismType::Sha384KeyDerivation => {
+                CK_MECHANISM_TYPE::from(CKM_SHA384_KEY_DERIVATION)
+            }
+            MechanismType::Sha512RsaPkcs => CK_MECHANISM_TYPE::from(CKM_SHA512_RSA_PKCS),
+            MechanismType::Sha512RsaPkcsPss => CK_MECHANISM_TYPE::from(CKM_SHA512_RSA_PKCS_PSS),
+            MechanismType::Sha512T => CK_MECHANISM_TYPE::from(CKM_SHA512_T),
+            MechanismType::Sha512THmac => CK_MECHANISM_TYPE::from(CKM_SHA512_T_HMAC),
+            MechanismType::Sha512THmacGeneral => CK_MECHANISM_TYPE::from(CKM_SHA512_T_HMAC_GENERAL),
+            MechanismType::Sha512TKeyDerivation => {
+                CK_MECHANISM_TYPE::from(CKM_SHA512_T_KEY_DERIVATION)
+            }
+            MechanismType::Sha512 => CK_MECHANISM_TYPE::from(CKM_SHA512),
+            MechanismType::Sha512Hmac => CK_MECHANISM_TYPE::from(CKM_SHA512_HMAC),
+            MechanismType::Sha512HmacGeneral => CK_MECHANISM_TYPE::from(CKM_SHA512_HMAC_GENERAL),
+            MechanismType::Sha512KeyDerivation => {
+                CK_MECHANISM_TYPE::from(CKM_SHA512_KEY_DERIVATION)
+            }
+            MechanismType::Sha1RsaX9_31 => CK_MECHANISM_TYPE::from(CKM_SHA1_RSA_X9_31),
+            MechanismType::Sha512_224 => CK_MECHANISM_TYPE::from(CKM_SHA512_224),
+            MechanismType::Sha512_224Hmac => CK_MECHANISM_TYPE::from(CKM_SHA512_224_HMAC),
             MechanismType::Sha512_224HmacGeneral => {
-                CKM_SHA512_224_HMAC_GENERAL as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_SHA512_224_HMAC_GENERAL)
             }
             MechanismType::Sha512_224KeyDerivation => {
-                CKM_SHA512_224_KEY_DERIVATION as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_SHA512_224_KEY_DERIVATION)
             }
-            MechanismType::Sha512_256 => CKM_SHA512_256 as CK_MECHANISM_TYPE,
-            MechanismType::Sha512_256Hmac => CKM_SHA512_256_HMAC as CK_MECHANISM_TYPE,
+            MechanismType::Sha512_256 => CK_MECHANISM_TYPE::from(CKM_SHA512_256),
+            MechanismType::Sha512_256Hmac => CK_MECHANISM_TYPE::from(CKM_SHA512_256_HMAC),
             MechanismType::Sha512_256HmacGeneral => {
-                CKM_SHA512_256_HMAC_GENERAL as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_SHA512_256_HMAC_GENERAL)
             }
             MechanismType::Sha512_256KeyDerivation => {
-                CKM_SHA512_256_KEY_DERIVATION as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_SHA512_256_KEY_DERIVATION)
             }
-            MechanismType::Sha1 => CKM_SHA_1 as CK_MECHANISM_TYPE,
-            MechanismType::Sha1Hmac => CKM_SHA_1_HMAC as CK_MECHANISM_TYPE,
-            MechanismType::Sha1HmacGeneral => CKM_SHA_1_HMAC_GENERAL as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackCbc64 => CKM_SKIPJACK_CBC64 as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackCfb8 => CKM_SKIPJACK_CFB8 as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackCfb16 => CKM_SKIPJACK_CFB16 as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackCfb32 => CKM_SKIPJACK_CFB32 as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackCfb64 => CKM_SKIPJACK_CFB64 as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackEcb64 => CKM_SKIPJACK_ECB64 as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackKeyGen => CKM_SKIPJACK_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackOfb64 => CKM_SKIPJACK_OFB64 as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackPrivateWrap => CKM_SKIPJACK_PRIVATE_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackRelayx => CKM_SKIPJACK_RELAYX as CK_MECHANISM_TYPE,
-            MechanismType::SkipjackWrap => CKM_SKIPJACK_WRAP as CK_MECHANISM_TYPE,
-            MechanismType::Ssl3PreMasterKeyGen => CKM_SSL3_PRE_MASTER_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::Ssl3MasterKeyDerive => CKM_SSL3_MASTER_KEY_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::Ssl3KeyAndMacDerive => CKM_SSL3_KEY_AND_MAC_DERIVE as CK_MECHANISM_TYPE,
+            MechanismType::Sha1 => CK_MECHANISM_TYPE::from(CKM_SHA_1),
+            MechanismType::Sha1Hmac => CK_MECHANISM_TYPE::from(CKM_SHA_1_HMAC),
+            MechanismType::Sha1HmacGeneral => CK_MECHANISM_TYPE::from(CKM_SHA_1_HMAC_GENERAL),
+            MechanismType::SkipjackCbc64 => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_CBC64),
+            MechanismType::SkipjackCfb8 => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_CFB8),
+            MechanismType::SkipjackCfb16 => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_CFB16),
+            MechanismType::SkipjackCfb32 => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_CFB32),
+            MechanismType::SkipjackCfb64 => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_CFB64),
+            MechanismType::SkipjackEcb64 => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_ECB64),
+            MechanismType::SkipjackKeyGen => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_KEY_GEN),
+            MechanismType::SkipjackOfb64 => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_OFB64),
+            MechanismType::SkipjackPrivateWrap => {
+                CK_MECHANISM_TYPE::from(CKM_SKIPJACK_PRIVATE_WRAP)
+            }
+            MechanismType::SkipjackRelayx => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_RELAYX),
+            MechanismType::SkipjackWrap => CK_MECHANISM_TYPE::from(CKM_SKIPJACK_WRAP),
+            MechanismType::Ssl3PreMasterKeyGen => {
+                CK_MECHANISM_TYPE::from(CKM_SSL3_PRE_MASTER_KEY_GEN)
+            }
+            MechanismType::Ssl3MasterKeyDerive => {
+                CK_MECHANISM_TYPE::from(CKM_SSL3_MASTER_KEY_DERIVE)
+            }
+            MechanismType::Ssl3KeyAndMacDerive => {
+                CK_MECHANISM_TYPE::from(CKM_SSL3_KEY_AND_MAC_DERIVE)
+            }
             MechanismType::Ssl3MasterKeyDeriveDh => {
-                CKM_SSL3_MASTER_KEY_DERIVE_DH as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_SSL3_MASTER_KEY_DERIVE_DH)
             }
-            MechanismType::Ssl3Md5Mac => CKM_SSL3_MD5_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Ssl3Sha1Mac => CKM_SSL3_SHA1_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Tls10MacServer => CKM_TLS10_MAC_SERVER as CK_MECHANISM_TYPE,
-            MechanismType::Tls10MacClient => CKM_TLS10_MAC_CLIENT as CK_MECHANISM_TYPE,
-            MechanismType::Tls12Mac => CKM_TLS12_MAC as CK_MECHANISM_TYPE,
-            MechanismType::Tls12Kdf => CKM_TLS12_KDF as CK_MECHANISM_TYPE,
-            MechanismType::Tls12MasterKeyDerive => CKM_TLS12_MASTER_KEY_DERIVE as CK_MECHANISM_TYPE,
+            MechanismType::Ssl3Md5Mac => CK_MECHANISM_TYPE::from(CKM_SSL3_MD5_MAC),
+            MechanismType::Ssl3Sha1Mac => CK_MECHANISM_TYPE::from(CKM_SSL3_SHA1_MAC),
+            MechanismType::Tls10MacServer => CK_MECHANISM_TYPE::from(CKM_TLS10_MAC_SERVER),
+            MechanismType::Tls10MacClient => CK_MECHANISM_TYPE::from(CKM_TLS10_MAC_CLIENT),
+            MechanismType::Tls12Mac => CK_MECHANISM_TYPE::from(CKM_TLS12_MAC),
+            MechanismType::Tls12Kdf => CK_MECHANISM_TYPE::from(CKM_TLS12_KDF),
+            MechanismType::Tls12MasterKeyDerive => {
+                CK_MECHANISM_TYPE::from(CKM_TLS12_MASTER_KEY_DERIVE)
+            }
             MechanismType::Tls12KeyAndMacDerive => {
-                CKM_TLS12_KEY_AND_MAC_DERIVE as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_TLS12_KEY_AND_MAC_DERIVE)
             }
             MechanismType::Tls12MasterKeyDeriveDh => {
-                CKM_TLS12_MASTER_KEY_DERIVE_DH as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_TLS12_MASTER_KEY_DERIVE_DH)
             }
-            MechanismType::Tls12KeySafeDerive => CKM_TLS12_KEY_SAFE_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::TlsKdf => CKM_TLS_KDF as CK_MECHANISM_TYPE,
-            MechanismType::TlsKeyAndMacDerive => CKM_TLS_KEY_AND_MAC_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::TlsMac => CKM_TLS_MAC as CK_MECHANISM_TYPE,
-            MechanismType::TlsMasterKeyDerive => CKM_TLS_MASTER_KEY_DERIVE as CK_MECHANISM_TYPE,
+            MechanismType::Tls12KeySafeDerive => CK_MECHANISM_TYPE::from(CKM_TLS12_KEY_SAFE_DERIVE),
+            MechanismType::TlsKdf => CK_MECHANISM_TYPE::from(CKM_TLS_KDF),
+            MechanismType::TlsKeyAndMacDerive => {
+                CK_MECHANISM_TYPE::from(CKM_TLS_KEY_AND_MAC_DERIVE)
+            }
+            MechanismType::TlsMac => CK_MECHANISM_TYPE::from(CKM_TLS_MAC),
+            MechanismType::TlsMasterKeyDerive => CK_MECHANISM_TYPE::from(CKM_TLS_MASTER_KEY_DERIVE),
             MechanismType::TlsMasterKeyDeriveDh => {
-                CKM_TLS_MASTER_KEY_DERIVE_DH as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_TLS_MASTER_KEY_DERIVE_DH)
             }
-            MechanismType::TlsPreMasterKeyGen => CKM_TLS_PRE_MASTER_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::TlsPrf => CKM_TLS_PRF as CK_MECHANISM_TYPE,
-            MechanismType::TwofishCbc => CKM_TWOFISH_CBC as CK_MECHANISM_TYPE,
-            MechanismType::TwofishCbcPad => CKM_TWOFISH_CBC_PAD as CK_MECHANISM_TYPE,
-            MechanismType::TwofishKeyGen => CKM_TWOFISH_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::VendorDefined => CKM_VENDOR_DEFINED as CK_MECHANISM_TYPE,
+            MechanismType::TlsPreMasterKeyGen => {
+                CK_MECHANISM_TYPE::from(CKM_TLS_PRE_MASTER_KEY_GEN)
+            }
+            MechanismType::TlsPrf => CK_MECHANISM_TYPE::from(CKM_TLS_PRF),
+            MechanismType::TwofishCbc => CK_MECHANISM_TYPE::from(CKM_TWOFISH_CBC),
+            MechanismType::TwofishCbcPad => CK_MECHANISM_TYPE::from(CKM_TWOFISH_CBC_PAD),
+            MechanismType::TwofishKeyGen => CK_MECHANISM_TYPE::from(CKM_TWOFISH_KEY_GEN),
+            MechanismType::VendorDefined => CK_MECHANISM_TYPE::from(CKM_VENDOR_DEFINED),
             MechanismType::WtlsClientKeyAndMacDerive => {
-                CKM_WTLS_CLIENT_KEY_AND_MAC_DERIVE as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_WTLS_CLIENT_KEY_AND_MAC_DERIVE)
             }
-            MechanismType::WtlsMasterKeyDerive => CKM_WTLS_MASTER_KEY_DERIVE as CK_MECHANISM_TYPE,
+            MechanismType::WtlsMasterKeyDerive => {
+                CK_MECHANISM_TYPE::from(CKM_WTLS_MASTER_KEY_DERIVE)
+            }
             MechanismType::WtlsMasterKeyDeriveDhEcc => {
-                CKM_WTLS_MASTER_KEY_DERIVE_DH_ECC as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_WTLS_MASTER_KEY_DERIVE_DH_ECC)
             }
-            MechanismType::WtlsPreMasterKeyGen => CKM_WTLS_PRE_MASTER_KEY_GEN as CK_MECHANISM_TYPE,
-            MechanismType::WtlsPrf => CKM_WTLS_PRF as CK_MECHANISM_TYPE,
+            MechanismType::WtlsPreMasterKeyGen => {
+                CK_MECHANISM_TYPE::from(CKM_WTLS_PRE_MASTER_KEY_GEN)
+            }
+            MechanismType::WtlsPrf => CK_MECHANISM_TYPE::from(CKM_WTLS_PRF),
             MechanismType::WtlsServerKeyAndMacDerive => {
-                CKM_WTLS_SERVER_KEY_AND_MAC_DERIVE as CK_MECHANISM_TYPE
+                CK_MECHANISM_TYPE::from(CKM_WTLS_SERVER_KEY_AND_MAC_DERIVE)
             }
-            MechanismType::X9_42DhKeyPairGen => CKM_X9_42_DH_KEY_PAIR_GEN as CK_MECHANISM_TYPE,
-            MechanismType::X9_42DhDerive => CKM_X9_42_DH_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::X9_42DhHybridDerive => CKM_X9_42_DH_HYBRID_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::X9_42MqvDerive => CKM_X9_42_MQV_DERIVE as CK_MECHANISM_TYPE,
-            MechanismType::X9_42DhParameterGen => CKM_X9_42_DH_PARAMETER_GEN as CK_MECHANISM_TYPE,
-            MechanismType::XorBaseAndData => CKM_XOR_BASE_AND_DATA as CK_MECHANISM_TYPE,
+            MechanismType::X9_42DhKeyPairGen => CK_MECHANISM_TYPE::from(CKM_X9_42_DH_KEY_PAIR_GEN),
+            MechanismType::X9_42DhDerive => CK_MECHANISM_TYPE::from(CKM_X9_42_DH_DERIVE),
+            MechanismType::X9_42DhHybridDerive => {
+                CK_MECHANISM_TYPE::from(CKM_X9_42_DH_HYBRID_DERIVE)
+            }
+            MechanismType::X9_42MqvDerive => CK_MECHANISM_TYPE::from(CKM_X9_42_MQV_DERIVE),
+            MechanismType::X9_42DhParameterGen => {
+                CK_MECHANISM_TYPE::from(CKM_X9_42_DH_PARAMETER_GEN)
+            }
+            MechanismType::XorBaseAndData => CK_MECHANISM_TYPE::from(CKM_XOR_BASE_AND_DATA),
         }
     }
 }

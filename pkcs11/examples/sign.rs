@@ -17,7 +17,7 @@ fn run() -> Result<(), Error> {
     let module = ModuleBuilder::new()
         .path("/usr/local/lib/softhsm/libsofthsm2.so")
         .initialize()?;
-    let session = module.session(595651617, SessionFlags::RW)?;
+    let session = module.session(595_651_617, SessionFlags::RW)?;
     session.login(UserType::User, "1234")?;
 
     // Import the key
@@ -30,8 +30,8 @@ fn run() -> Result<(), Error> {
     let key = session.create_object(&template)?;
 
     // Sign and verify
-    let signature = key.sign(MechanismType::Sha256Hmac, "hello".as_bytes())?;
-    let verified = key.verify(MechanismType::Sha256Hmac, "hello".as_bytes(), &signature)?;
+    let signature = key.sign(MechanismType::Sha256Hmac, b"hello")?;
+    let verified = key.verify(MechanismType::Sha256Hmac, b"hello", &signature)?;
     println!("signature: {}", base64::encode(&signature));
     println!("verified:  {}", verified);
     Ok(())

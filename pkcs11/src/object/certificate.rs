@@ -1,3 +1,5 @@
+use std::default::Default;
+
 use pkcs11_sys::*;
 
 use crate::object::{Attribute, AttributeValue, ObjectClass, Template};
@@ -20,10 +22,10 @@ pub enum CertificateType {
 impl From<CertificateType> for CK_CERTIFICATE_TYPE {
     fn from(cert_type: CertificateType) -> CK_CERTIFICATE_TYPE {
         match cert_type {
-            CertificateType::Vendor => CKC_VENDOR_DEFINED as CK_CERTIFICATE_TYPE,
-            CertificateType::Wtls => CKC_WTLS as CK_CERTIFICATE_TYPE,
-            CertificateType::X509 => CKC_X_509 as CK_CERTIFICATE_TYPE,
-            CertificateType::X509AttrCert => CKC_X_509_ATTR_CERT as CK_CERTIFICATE_TYPE,
+            CertificateType::Vendor => CK_CERTIFICATE_TYPE::from(CKC_VENDOR_DEFINED),
+            CertificateType::Wtls => CK_CERTIFICATE_TYPE::from(CKC_WTLS),
+            CertificateType::X509 => CK_CERTIFICATE_TYPE::from(CKC_X_509),
+            CertificateType::X509AttrCert => CK_CERTIFICATE_TYPE::from(CKC_X_509_ATTR_CERT),
         }
     }
 }
@@ -47,15 +49,15 @@ impl X509CertificateTemplate {
     }
 
     // Common attributes
-    attr_bool!(is_token_object, CKA_TOKEN);
-    attr_bool!(is_private, CKA_PRIVATE);
-    attr_bool!(is_modifiable, CKA_MODIFIABLE);
+    attr_bool!(token_object, CKA_TOKEN);
+    attr_bool!(private, CKA_PRIVATE);
+    attr_bool!(modifiable, CKA_MODIFIABLE);
     attr_string!(label, CKA_LABEL);
-    attr_bool!(is_copyable, CKA_COPYABLE);
-    attr_bool!(is_destroyable, CKA_DESTROYABLE);
+    attr_bool!(copyable, CKA_COPYABLE);
+    attr_bool!(destroyable, CKA_DESTROYABLE);
 
     // Common certificate attributes
-    attr_bool!(is_trusted, CKA_TRUSTED);
+    attr_bool!(trusted, CKA_TRUSTED);
     attr_bytes!(check_value, CKA_CHECK_VALUE);
     // attr_date!(start_date, CKA_START_DATE);
     // attr_date!(end_date, CKA_END_DATE);
@@ -71,6 +73,12 @@ impl X509CertificateTemplate {
     attr_bytes!(hash_of_subject_public_key, CKA_HASH_OF_SUBJECT_PUBLIC_KEY);
     attr_bytes!(hash_of_issuer_public_key, CKA_HASH_OF_ISSUER_PUBLIC_KEY);
     attr_mech!(name_hash_algorithm, CKA_NAME_HASH_ALGORITHM);
+}
+
+impl Default for X509CertificateTemplate {
+    fn default() -> Self {
+        X509CertificateTemplate::new()
+    }
 }
 
 impl Template for X509CertificateTemplate {

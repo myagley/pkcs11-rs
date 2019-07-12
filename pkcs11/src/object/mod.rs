@@ -52,15 +52,15 @@ pub(crate) enum ObjectClass {
 impl From<ObjectClass> for CK_OBJECT_CLASS {
     fn from(object_class: ObjectClass) -> CK_OBJECT_CLASS {
         match object_class {
-            ObjectClass::Certificate => CKO_CERTIFICATE as CK_OBJECT_CLASS,
-            ObjectClass::Data => CKO_DATA as CK_OBJECT_CLASS,
-            ObjectClass::DomainParameters => CKO_DOMAIN_PARAMETERS as CK_OBJECT_CLASS,
-            ObjectClass::HwFeature => CKO_HW_FEATURE as CK_OBJECT_CLASS,
-            ObjectClass::OtpKey => CKO_OTP_KEY as CK_OBJECT_CLASS,
-            ObjectClass::PrivateKey => CKO_PRIVATE_KEY as CK_OBJECT_CLASS,
-            ObjectClass::PublicKey => CKO_PUBLIC_KEY as CK_OBJECT_CLASS,
-            ObjectClass::SecretKey => CKO_SECRET_KEY as CK_OBJECT_CLASS,
-            ObjectClass::Vendor => CKO_VENDOR_DEFINED as CK_OBJECT_CLASS,
+            ObjectClass::Certificate => CK_OBJECT_CLASS::from(CKO_CERTIFICATE),
+            ObjectClass::Data => CK_OBJECT_CLASS::from(CKO_DATA),
+            ObjectClass::DomainParameters => CK_OBJECT_CLASS::from(CKO_DOMAIN_PARAMETERS),
+            ObjectClass::HwFeature => CK_OBJECT_CLASS::from(CKO_HW_FEATURE),
+            ObjectClass::OtpKey => CK_OBJECT_CLASS::from(CKO_OTP_KEY),
+            ObjectClass::PrivateKey => CK_OBJECT_CLASS::from(CKO_PRIVATE_KEY),
+            ObjectClass::PublicKey => CK_OBJECT_CLASS::from(CKO_PUBLIC_KEY),
+            ObjectClass::SecretKey => CK_OBJECT_CLASS::from(CKO_SECRET_KEY),
+            ObjectClass::Vendor => CK_OBJECT_CLASS::from(CKO_VENDOR_DEFINED),
         }
     }
 }
@@ -135,7 +135,7 @@ pub trait Template {
 
 macro_rules! r#attr_bool {
     ($op:ident,$attr:ident) => {
-        pub fn $op<'a>(&'a mut self, $op: bool) -> &'a mut Self {
+        pub fn $op(&mut self, $op: bool) -> &mut Self {
             let value = if $op {
                 $crate::object::AttributeValue::Bool(pkcs11_sys::CK_TRUE as pkcs11_sys::CK_BBOOL)
             } else {
@@ -150,7 +150,7 @@ macro_rules! r#attr_bool {
 
 macro_rules! r#attr_bigint {
     ($op:ident,$attr:ident) => {
-        pub fn $op<'a>(&'a mut self, $op: $crate::object::BigUint) -> &'a mut Self {
+        pub fn $op(&mut self, $op: $crate::object::BigUint) -> &mut Self {
             let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::Num($op));
             self.attributes.push(attribute);
             self
@@ -160,7 +160,7 @@ macro_rules! r#attr_bigint {
 
 macro_rules! r#attr_bytes {
     ($op:ident,$attr:ident) => {
-        pub fn $op<'a>(&'a mut self, $op: Vec<u8>) -> &'a mut Self {
+        pub fn $op(&mut self, $op: Vec<u8>) -> &mut Self {
             let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::Bytes($op));
             self.attributes.push(attribute);
             self
@@ -170,7 +170,7 @@ macro_rules! r#attr_bytes {
 
 macro_rules! r#attr_mech {
     ($op:ident,$attr:ident) => {
-        pub fn $op<'a>(&'a mut self, $op: $crate::object::MechanismType) -> &'a mut Self {
+        pub fn $op(&mut self, $op: $crate::object::MechanismType) -> &mut Self {
             let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::MechanismType($op.into()));
             self.attributes.push(attribute);
             self
@@ -180,7 +180,7 @@ macro_rules! r#attr_mech {
 
 macro_rules! r#attr_string {
     ($op:ident,$attr:ident) => {
-        pub fn $op<'a>(&'a mut self, $op: String) -> &'a mut Self {
+        pub fn $op(&mut self, $op: String) -> &mut Self {
             let attribute = $crate::object::Attribute::new(pkcs11_sys::$attr.into(), $crate::object::AttributeValue::String($op));
             self.attributes.push(attribute);
             self

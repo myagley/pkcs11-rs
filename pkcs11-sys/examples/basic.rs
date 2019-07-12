@@ -38,7 +38,7 @@ fn main() {
 
     let slot_info = unsafe {
         let mut slot_info: CK_SLOT_INFO = mem::uninitialized();
-        (*list).C_GetSlotInfo.unwrap()(1723281416, &mut slot_info);
+        (*list).C_GetSlotInfo.unwrap()(1_723_281_416, &mut slot_info);
         slot_info
     };
     println!();

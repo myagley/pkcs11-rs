@@ -256,9 +256,9 @@ impl From<CK_USER_TYPE> for UserType {
 impl From<UserType> for CK_USER_TYPE {
     fn from(user_type: UserType) -> CK_USER_TYPE {
         match user_type {
-            UserType::SecurityOfficer => CKU_SO as CK_USER_TYPE,
-            UserType::User => CKU_USER as CK_USER_TYPE,
-            UserType::ContextSpecific => CKU_CONTEXT_SPECIFIC as CK_USER_TYPE,
+            UserType::SecurityOfficer => CK_USER_TYPE::from(CKU_SO),
+            UserType::User => CK_USER_TYPE::from(CKU_USER),
+            UserType::ContextSpecific => CK_USER_TYPE::from(CKU_CONTEXT_SPECIFIC),
         }
     }
 }
@@ -308,7 +308,7 @@ impl Finder {
                 if rv == CKR_OK.into() {
                     log::trace!("C_FindObjectFinal succeeded");
                 } else {
-                    log::trace!("C_FindObjectFinal failed with {}", Pkcs11Error::from(rv.into()));
+                    log::trace!("C_FindObjectFinal failed with {}", Pkcs11Error::from(rv));
                 }
             }}
 

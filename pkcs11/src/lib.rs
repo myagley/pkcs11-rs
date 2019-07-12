@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::convert::From;
+use std::default::Default;
 use std::ffi::c_void;
 use std::mem;
 use std::path::PathBuf;
@@ -47,12 +48,12 @@ impl ModuleBuilder {
         }
     }
 
-    pub fn path<'a, P: Into<PathBuf>>(&'a mut self, module_path: P) -> &'a mut Self {
+    pub fn path<P: Into<PathBuf>>(&mut self, module_path: P) -> &mut Self {
         self.module_path = module_path.into();
         self
     }
 
-    pub fn initialize<'a>(&self) -> Result<Module, Error> {
+    pub fn initialize(&self) -> Result<Module, Error> {
         let lib = lib::Library::new(&self.module_path).context(ErrorKind::LoadModule)?;
         let functions = unsafe {
             let mut list: CK_FUNCTION_LIST_PTR = mem::uninitialized();
@@ -73,7 +74,7 @@ impl ModuleBuilder {
                     DestroyMutex: None,
                     LockMutex: None,
                     UnlockMutex: None,
-                    flags: CKF_OS_LOCKING_OK as CK_FLAGS,
+                    flags: CK_FLAGS::from(CKF_OS_LOCKING_OK),
                     pReserved: arg,
                 };
                 let initialize = (*functions)
@@ -104,6 +105,12 @@ impl ModuleBuilder {
             inner: Arc::new(inner),
         };
         Ok(module)
+    }
+}
+
+impl Default for ModuleBuilder {
+    fn default() -> Self {
+        ModuleBuilder::new()
     }
 }
 
@@ -513,7 +520,7 @@ impl TokenInfo {
     /// True if the token has been initialized using C_InitToken or an
     /// equivalent mechanism outside the scope of this standard.
     pub fn is_initialized(&self) -> bool {
-        (self.inner.flags & (CKF_TOKEN_INITIALIZED as CK_FLAGS)) != 0
+        (self.inner.flags & (CK_FLAGS::from(CKF_TOKEN_INITIALIZED))) != 0
     }
 }
 

@@ -106,27 +106,27 @@ fn load_certs(filename: &str) -> io::Result<Vec<rustls::Certificate>> {
     pemfile::certs(&mut reader).map_err(|_| error("failed to load certificate".into()))
 }
 
-// Load private key from file.
-fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
-    // Open keyfile.
-    let keyfile = fs::File::open(filename)
-        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
-    let mut reader = io::BufReader::new(keyfile);
-
-    // Load and return a single private key.
-    let keys = pemfile::rsa_private_keys(&mut reader)
-        .map_err(|_| error("failed to load private key".into()))?;
-    if keys.len() != 1 {
-        return Err(error("expected a single private key".into()));
-    }
-    Ok(keys[0].clone())
-}
+// // Load private key from file.
+// fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
+//     // Open keyfile.
+//     let keyfile = fs::File::open(filename)
+//         .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
+//     let mut reader = io::BufReader::new(keyfile);
+//
+//     // Load and return a single private key.
+//     let keys = pemfile::rsa_private_keys(&mut reader)
+//         .map_err(|_| error("failed to load private key".into()))?;
+//     if keys.len() != 1 {
+//         return Err(error("expected a single private key".into()));
+//     }
+//     Ok(keys[0].clone())
+// }
 
 // Load private key from hsm.
 fn load_private_key_pkcs11<'m>(module: &'m Module, label: &str) -> io::Result<RsaKey> {
     // Initialize pkcs11 module and login to session
     let session = module
-        .session(595651617, SessionFlags::RW)
+        .session(595_651_617, SessionFlags::RW)
         .map_err(|e| error(format!("get session failed with {}", e)))?;
     session
         .login(UserType::User, "1234")
@@ -139,6 +139,6 @@ fn load_private_key_pkcs11<'m>(module: &'m Module, label: &str) -> io::Result<Rs
         .map_err(|e| error(format!("find objects failed with {}", e)))?
         .into_iter()
         .nth(0)
-        .ok_or(error("no key found".to_string()))?;
+        .ok_or_else(|| error("no key found".to_string()))?;
     Ok(RsaKey::new(key))
 }

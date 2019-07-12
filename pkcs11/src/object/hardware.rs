@@ -18,10 +18,10 @@ pub enum HwFeatureType {
 impl From<HwFeatureType> for CK_HW_FEATURE_TYPE {
     fn from(hw_feature_type: HwFeatureType) -> CK_HW_FEATURE_TYPE {
         match hw_feature_type {
-            HwFeatureType::Vendor => CKH_VENDOR_DEFINED as CK_HW_FEATURE_TYPE,
-            HwFeatureType::Clock => CKH_CLOCK as CK_HW_FEATURE_TYPE,
-            HwFeatureType::MonotonicCounter => CKH_MONOTONIC_COUNTER as CK_HW_FEATURE_TYPE,
-            HwFeatureType::UserInterface => CKH_USER_INTERFACE as CK_HW_FEATURE_TYPE,
+            HwFeatureType::Vendor => CK_HW_FEATURE_TYPE::from(CKH_VENDOR_DEFINED),
+            HwFeatureType::Clock => CK_HW_FEATURE_TYPE::from(CKH_CLOCK),
+            HwFeatureType::MonotonicCounter => CK_HW_FEATURE_TYPE::from(CKH_MONOTONIC_COUNTER),
+            HwFeatureType::UserInterface => CK_HW_FEATURE_TYPE::from(CKH_USER_INTERFACE),
         }
     }
 }

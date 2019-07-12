@@ -163,7 +163,7 @@ fn load_certs(filename: &str) -> io::Result<Vec<rustls::Certificate>> {
 fn load_private_key_pkcs11<'m>(module: &'m Module, label: &str) -> io::Result<RsaKey> {
     // Initialize pkcs11 module and login to session
     let session = module
-        .session(595651617, SessionFlags::RW)
+        .session(595_651_617, SessionFlags::RW)
         .map_err(|e| error(format!("get session failed with {}", e)))?;
     session
         .login(UserType::User, "1234")
@@ -176,6 +176,6 @@ fn load_private_key_pkcs11<'m>(module: &'m Module, label: &str) -> io::Result<Rs
         .map_err(|e| error(format!("find objects failed with {}", e)))?
         .into_iter()
         .nth(0)
-        .ok_or(error("no key found".to_string()))?;
+        .ok_or_else(|| error("no key found".to_string()))?;
     Ok(RsaKey::new(key))
 }
